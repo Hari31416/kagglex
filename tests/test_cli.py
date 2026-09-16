@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kagglerun.cli import create_parser, main
+from kagglex.cli import create_parser, main
 
 
 def test_cli_parser_run() -> None:
@@ -106,7 +106,7 @@ def test_cli_exec_missing_url(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_cli_exec_test_connection() -> None:
     """Test 'exec --test' command invokes client.test_connection."""
     with patch(
-        "kagglerun.interactive.JupyterProxyClient.test_connection", return_value=True
+        "kagglex.interactive.JupyterProxyClient.test_connection", return_value=True
     ):
         exit_code = main(["exec", "--url", "https://proxy.kaggle.net/proxy", "--test"])
         assert exit_code == 0

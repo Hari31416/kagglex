@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 import zipfile
 
-from kagglerun.config import RunConfig
-from kagglerun.packager import (
+from kagglex.config import RunConfig
+from kagglex.packager import (
     create_kernel_metadata,
     package_local_data,
     package_project,

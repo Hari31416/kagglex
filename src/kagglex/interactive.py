@@ -151,7 +151,7 @@ class JupyterProxyClient:
         execute_msg = {
             "header": {
                 "msg_id": msg_id,
-                "username": "kagglerun",
+                "username": "kagglex",
                 "session": self.session_id,
                 "msg_type": "execute_request",
                 "version": "5.3",

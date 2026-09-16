@@ -3,7 +3,7 @@
 from pathlib import Path
 import pytest
 
-from kagglerun.config import DatasetConfig, RunConfig, slugify
+from kagglex.config import DatasetConfig, RunConfig, slugify
 
 
 def test_slugify() -> None:

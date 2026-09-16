@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import List, Optional
 import zipfile
 
-from kagglerun.config import RunConfig
-from kagglerun.ignore import IgnoreFilter
-from kagglerun.workspace import ProjectType, detect_project_type
+from kagglex.config import RunConfig
+from kagglex.ignore import IgnoreFilter
+from kagglex.workspace import ProjectType, detect_project_type
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def package_local_data(
         raise ValueError(
             f"Bundled data size ({size_mb:.1f} MB) exceeds maximum upload limit "
             f"({MAX_KERNEL_UPLOAD_BYTES / (1024 * 1024):.0f} MB). "
-            "Please upload large datasets using `kagglerun dataset push`."
+            "Please upload large datasets using `kagglex dataset push`."
         )
 
     logger.info(

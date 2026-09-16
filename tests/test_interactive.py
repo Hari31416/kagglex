@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from kagglerun.config import InteractiveConfig, resolve_jupyter_url
-from kagglerun.interactive import JupyterProxyClient
+from kagglex.config import InteractiveConfig, resolve_jupyter_url
+from kagglex.interactive import JupyterProxyClient
 
 
 def test_url_resolution_env_and_direct(monkeypatch: pytest.MonkeyPatch) -> None:

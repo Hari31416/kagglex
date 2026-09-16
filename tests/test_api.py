@@ -3,8 +3,8 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from kagglerun.api import KaggleRunner
-from kagglerun.config import RunConfig
+from kagglex.api import KaggleRunner
+from kagglex.config import RunConfig
 
 
 def test_kaggle_runner_stage(
@@ -24,6 +24,12 @@ def test_kaggle_runner_stage(
     assert (staging_dir / "pkg_payload.zip").exists()
     assert (staging_dir / "kaggle_bootstrap.py").exists()
     assert (staging_dir / "kernel-metadata.json").exists()
+
+
+def test_kaggle_runner_default_staging_dir(sample_src_project: Path) -> None:
+    """Test default staging directory resolves to repo_root / .kagglex / staging."""
+    runner = KaggleRunner(repo_root=sample_src_project)
+    assert runner.staging_dir == sample_src_project / ".kagglex" / "staging"
 
 
 def test_kaggle_runner_run(

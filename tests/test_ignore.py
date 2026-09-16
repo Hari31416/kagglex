@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from kagglerun.ignore import IgnoreFilter
+from kagglex.ignore import IgnoreFilter
 
 
 def test_ignore_filter_defaults(tmp_path: Path) -> None:

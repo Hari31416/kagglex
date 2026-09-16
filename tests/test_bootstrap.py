@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from kagglerun.bootstrap import generate_bootstrap_script
-from kagglerun.config import RunConfig
+from kagglex.bootstrap import generate_bootstrap_script
+from kagglex.config import RunConfig
 
 
 def test_generate_bootstrap_script(tmp_path: Path) -> None:

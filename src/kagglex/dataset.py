@@ -5,8 +5,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from kagglerun.client import get_authenticated_username, get_kaggle_api
-from kagglerun.config import DatasetConfig
+from kagglex.client import get_authenticated_username, get_kaggle_api
+from kagglex.config import DatasetConfig
 
 logger = logging.getLogger(__name__)
 

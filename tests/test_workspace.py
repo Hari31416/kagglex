@@ -3,7 +3,7 @@
 from pathlib import Path
 import pytest
 
-from kagglerun.workspace import (
+from kagglex.workspace import (
     ProjectType,
     detect_project_type,
     extract_script_path_from_command,

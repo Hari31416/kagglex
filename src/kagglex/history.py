@@ -30,11 +30,18 @@ class RunRecord:
 def get_history_file(repo_root: Optional[Path] = None) -> Path:
     """Get path to local or user-level run history file."""
     if repo_root:
-        hist_dir = repo_root / ".kagglerun"
+        hist_dir = repo_root / ".kagglex"
+        legacy_file = repo_root / ".kagglerun" / "runs.json"
     else:
-        hist_dir = Path.home() / ".kagglerun"
+        hist_dir = Path.home() / ".kagglex"
+        legacy_file = Path.home() / ".kagglerun" / "runs.json"
     hist_dir.mkdir(parents=True, exist_ok=True)
-    return hist_dir / "runs.json"
+    target_file = hist_dir / "runs.json"
+    if not target_file.exists() and legacy_file.exists():
+        import shutil
+
+        shutil.copy2(legacy_file, target_file)
+    return target_file
 
 
 def load_all_records(repo_root: Optional[Path] = None) -> List[Dict[str, Any]]:

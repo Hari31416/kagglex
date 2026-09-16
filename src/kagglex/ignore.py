@@ -45,6 +45,8 @@ DEFAULT_IGNORE_PATTERNS: List[str] = [
     # Local runs and staging
     ".kagglerun",
     ".kagglerun/**",
+    ".kagglex",
+    ".kagglex/**",
     "artifacts",
     "artifacts/**",
     # Large ML checkpoints and data (default to prevent accidental multi-GB uploads)

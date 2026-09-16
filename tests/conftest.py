@@ -1,18 +1,17 @@
-"""Shared pytest fixtures and mocked clients for kagglerun tests."""
+"""Shared pytest fixtures and mocked clients for kagglex tests."""
 
 from pathlib import Path
-from typing import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 
 @pytest.fixture
-def mock_kaggle_api() -> Generator[MagicMock, None, None]:
-    """Provide a mock KaggleApi instance for offline testing."""
+def mock_kaggle_api():
+    """Mock the kaggle API client globally for offline tests."""
     with (
-        patch("kagglerun.client.get_kaggle_api") as mock_get_api,
-        patch("kagglerun.dataset.get_kaggle_api") as mock_get_dataset_api,
+        patch("kagglex.client.get_kaggle_api") as mock_get_api,
+        patch("kagglex.dataset.get_kaggle_api") as mock_get_dataset_api,
     ):
         api_instance = MagicMock()
         api_instance.get_config_value.return_value = "testuser"

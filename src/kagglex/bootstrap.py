@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from kagglerun.config import RunConfig
+from kagglex.config import RunConfig
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ DATA_PAYLOAD_B64 = __DATA_PAYLOAD_B64_JSON__
 def log(msg: str) -> None:
     """Print timestamped log message to stdout."""
     now = time.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{now}] [KAGGLERUN] {msg}", flush=True)
+    print(f"[{now}] [KAGGLEX] {msg}", flush=True)
 
 
 def print_environment_info() -> None:
@@ -222,7 +222,7 @@ def build_execution_command() -> str:
 def main() -> int:
     """Bootstrap entrypoint."""
     start_time = time.time()
-    log("Starting remote kagglerun bootstrap...")
+    log("Starting remote kagglex bootstrap...")
 
     output_dir = Path("/kaggle/working/outputs")
     output_dir.mkdir(parents=True, exist_ok=True)

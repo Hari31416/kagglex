@@ -1,10 +1,10 @@
-# kagglerun
+# kagglex
 
 Execute local Python code, modules, and experiments seamlessly on Kaggle GPUs and TPUs.
 
 ## Overview
 
-`kagglerun` enables machine learning practitioners and researchers to transparently package and dispatch local Python code, standalone scripts, or complete packages to Kaggle's cloud GPU and TPU environments without tedious manual uploading or notebook maintenance.
+`kagglex` enables machine learning practitioners and researchers to transparently package and dispatch local Python code, standalone scripts, or complete packages to Kaggle's cloud GPU and TPU environments without tedious manual uploading or notebook maintenance.
 
 ## Features
 
@@ -15,14 +15,15 @@ Execute local Python code, modules, and experiments seamlessly on Kaggle GPUs an
 - Automated multi-GPU execution using `torchrun`
 - Secure Kaggle Secrets integration for WandB, HuggingFace, and custom credentials
 - Local experiment history repository for tracking past runs, statuses, and durations
-- Programmatic Python SDK alongside the `kagglerun` CLI
+- Interactive REPL execution on active Kaggle notebooks via Jupyter proxy URL
+- Programmatic Python SDK alongside the `kagglex` CLI
 
 ## Installation
 
 Install via uv or pip:
 
 ```bash
-uv pip install kagglerun
+uv pip install kagglex
 ```
 
 ## CLI Usage
@@ -30,44 +31,44 @@ uv pip install kagglerun
 ### Run a Standalone Script
 
 ```bash
-kagglerun run --file train.py --gpu t4-2x --title "Pilot Training"
+kagglex run --file train.py --gpu t4-2x --title "Pilot Training"
 ```
 
 ### Run a Module with Multi-GPU
 
 ```bash
-kagglerun run "python -m mypkg.train --epochs 10" --gpu t4-2x --multi-gpu
+kagglex run "python -m mypkg.train --epochs 10" --gpu t4-2x --multi-gpu
 ```
 
 ### Stream Remote Logs in Real-Time
 
 ```bash
-kagglerun run "python train.py" --stream
+kagglex run "python train.py" --stream
 ```
 
 ### List Recent Runs
 
 ```bash
-kagglerun list
+kagglex list
 ```
 
 ### Check Status or Cancel a Run
 
 ```bash
-kagglerun status my-experiment
-kagglerun cancel my-experiment
+kagglex status my-experiment
+kagglex cancel my-experiment
 ```
 
 ### Pull Downloaded Outputs
 
 ```bash
-kagglerun pull my-experiment --output-dir ./results --include-outputs "*.json" "checkpoints/*"
+kagglex pull my-experiment --output-dir ./results --include-outputs "*.json" "checkpoints/*"
 ```
 
 ### Push a Kaggle Dataset
 
 ```bash
-kagglerun dataset push --data-dir ./data/embeddings --title "Embeddings Dataset"
+kagglex dataset push --data-dir ./data/embeddings --title "Embeddings Dataset"
 ```
 
 ### Interactive REPL on Running Kaggle Notebooks
@@ -76,21 +77,21 @@ When a notebook is already open in Kaggle, copy its proxy URL (`Run -> Kaggle Ju
 
 ```bash
 # Verify connection
-kagglerun exec --url "https://kkb-production.jupyter-proxy.kaggle.net?token=..." --test
+kagglex exec --url "https://kkb-production.jupyter-proxy.kaggle.net?token=..." --test
 
 # Query remote GPU status
-kagglerun exec --url "https://kkb-production.jupyter-proxy.kaggle.net?token=..." --gpu-info
+kagglex exec --url "https://kkb-production.jupyter-proxy.kaggle.net?token=..." --gpu-info
 
 # Execute inline Python snippets
-kagglerun exec "import torch; print(torch.cuda.device_count())"
+kagglex exec "import torch; print(torch.cuda.device_count())"
 
 # Execute a local Python file remotely
-kagglerun exec --file evaluate.py
+kagglex exec --file evaluate.py
 
 # List and transfer files
-kagglerun exec --list-files
-kagglerun exec --upload ./checkpoint.pt
-kagglerun exec --download run_results.json -o ./local_results.json
+kagglex exec --list-files
+kagglex exec --upload ./checkpoint.pt
+kagglex exec --download run_results.json -o ./local_results.json
 ```
 
 Alternatively, set the environment variable:
@@ -102,7 +103,7 @@ export KAGGLE_JUPYTER_URL="https://kkb-production.jupyter-proxy.kaggle.net?token
 ## Python SDK Usage
 
 ```python
-from kagglerun import KaggleRunner, RunConfig
+from kagglex import KaggleRunner, RunConfig
 
 runner = KaggleRunner()
 job = runner.run(

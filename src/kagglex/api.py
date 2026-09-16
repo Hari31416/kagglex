@@ -1,4 +1,4 @@
-"""Programmatic Python API for kagglerun."""
+"""Programmatic Python API for kagglex."""
 
 import json
 import logging
@@ -6,8 +6,8 @@ from pathlib import Path
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-from kagglerun.bootstrap import generate_bootstrap_script
-from kagglerun.client import (
+from kagglex.bootstrap import generate_bootstrap_script
+from kagglex.client import (
     cancel_kernel,
     get_authenticated_username,
     get_kernel_status,
@@ -16,14 +16,14 @@ from kagglerun.client import (
     push_kernel,
     stream_kernel_logs,
 )
-from kagglerun.config import RunConfig
-from kagglerun.history import RunRecord, get_run, list_runs, record_run, update_run
-from kagglerun.packager import (
+from kagglex.config import RunConfig
+from kagglex.history import RunRecord, get_run, list_runs, record_run, update_run
+from kagglex.packager import (
     create_kernel_metadata,
     package_local_data,
     package_project,
 )
-from kagglerun.workspace import (
+from kagglex.workspace import (
     ProjectType,
     detect_project_type,
     extract_script_path_from_command,
@@ -137,7 +137,7 @@ class KaggleRunner:
     ) -> None:
         self.repo_root = (repo_root or find_repo_root()).resolve()
         self.staging_dir = staging_dir or (
-            self.repo_root / "artifacts" / "kaggle_staging"
+            self.repo_root / ".kagglex" / "staging"
         )
 
     def stage(self, config: RunConfig) -> Path:

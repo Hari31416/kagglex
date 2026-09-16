@@ -1,4 +1,4 @@
-"""Configuration models and validation rules for kagglerun."""
+"""Configuration models and validation rules for kagglex."""
 
 from dataclasses import dataclass, field
 import logging

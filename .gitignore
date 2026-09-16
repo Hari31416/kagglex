@@ -42,6 +42,6 @@ htmlcov/
 
 # Artifacts and staging
 artifacts/
-.kagglerun/
+.kagglex
 results/
 outputs/

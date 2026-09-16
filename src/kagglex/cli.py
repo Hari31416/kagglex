@@ -1,4 +1,4 @@
-"""Command-line interface for kagglerun."""
+"""Command-line interface for kagglex."""
 
 import argparse
 import logging
@@ -7,8 +7,8 @@ from pathlib import Path
 import sys
 from typing import Dict, List, Optional
 
-from kagglerun.api import KaggleRunner
-from kagglerun.client import (
+from kagglex.api import KaggleRunner
+from kagglex.client import (
     append_experiment_record,
     cancel_kernel,
     check_kaggle_health,
@@ -19,12 +19,12 @@ from kagglerun.client import (
     push_kernel,
     stream_kernel_logs,
 )
-from kagglerun.config import DatasetConfig, RunConfig
-from kagglerun.dataset import create_dataset_metadata, push_dataset
-from kagglerun.history import get_run, list_runs, update_run
-from kagglerun.workspace import find_repo_root
+from kagglex.config import DatasetConfig, RunConfig
+from kagglex.dataset import create_dataset_metadata, push_dataset
+from kagglex.history import get_run, list_runs, update_run
+from kagglex.workspace import find_repo_root
 
-logger = logging.getLogger("kagglerun")
+logger = logging.getLogger("kagglex")
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -131,7 +131,7 @@ def handle_run(args: argparse.Namespace) -> int:
 
     if args.no_wait:
         logger.info(
-            "Kernel submitted. Monitor later with: kagglerun status %s", job.kernel_id
+            "Kernel submitted. Monitor later with: kagglex status %s", job.kernel_id
         )
         return 0
 
@@ -279,8 +279,8 @@ def handle_dataset_push(args: argparse.Namespace) -> int:
 
 def handle_exec(args: argparse.Namespace) -> int:
     """Handle 'exec' subcommand for interactive Jupyter proxy execution."""
-    from kagglerun.config import resolve_jupyter_url
-    from kagglerun.interactive import JupyterProxyClient
+    from kagglex.config import resolve_jupyter_url
+    from kagglex.interactive import JupyterProxyClient
 
     url = resolve_jupyter_url(args.url)
     if not url:
@@ -357,7 +357,7 @@ def handle_exec(args: argparse.Namespace) -> int:
 
     if not code_to_run:
         logger.error(
-            "No code or script specified to execute. Use: kagglerun exec 'print(1)' or --file script.py"
+            "No code or script specified to execute. Use: kagglex exec 'print(1)' or --file script.py"
         )
         return 1
 
@@ -367,9 +367,9 @@ def handle_exec(args: argparse.Namespace) -> int:
 
 
 def create_parser() -> argparse.ArgumentParser:
-    """Construct CLI argument parser for kagglerun."""
+    """Construct CLI argument parser for kagglex."""
     parser = argparse.ArgumentParser(
-        prog="kagglerun",
+        prog="kagglex",
         description="Execute local Python code, modules, and experiments seamlessly on Kaggle GPUs.",
     )
     parser.add_argument(

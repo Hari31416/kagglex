@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "kagglerun"
+name = "kagglex"
 version = "0.1.0"
 description = "Execute local Python code, modules, and experiments seamlessly on Kaggle GPUs."
 readme = "README.md"
@@ -36,4 +36,4 @@ dev = [
 ]
 
 [project.scripts]
-kagglerun = "kagglerun.cli:main"
+kagglex = "kagglex.cli:main"

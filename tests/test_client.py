@@ -3,7 +3,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from kagglerun.client import (
+from kagglex.client import (
     _match_pattern,
     cancel_kernel,
     check_kaggle_health,

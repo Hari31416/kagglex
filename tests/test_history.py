@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from kagglerun.history import (
+from kagglex.history import (
     RunRecord,
     get_run,
     list_runs,
