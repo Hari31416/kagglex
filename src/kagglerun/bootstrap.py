@@ -161,6 +161,12 @@ def extract_package_and_install() -> None:
                 [sys.executable, "-m", "pip", "install", "-r", str(req_txt)],
                 check=False,
             )
+
+        # Ensure top-level script files are accessible directly in /kaggle/working
+        for item in extract_dir.iterdir():
+            dest = Path("/kaggle/working") / item.name
+            if not dest.exists() and item.is_file():
+                shutil.copy2(item, dest)
     else:
         log("No package payload archive found.")
 

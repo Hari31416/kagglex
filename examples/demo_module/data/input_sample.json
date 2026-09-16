@@ -1,0 +1,8 @@
+{
+  "test_id": "kagglerun_data_test_01",
+  "name": "Local Dataset Payload",
+  "records": [
+    {"id": 1, "value": 42},
+    {"id": 2, "value": 100}
+  ]
+}

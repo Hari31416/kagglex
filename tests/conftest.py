@@ -10,9 +10,10 @@ import pytest
 @pytest.fixture
 def mock_kaggle_api() -> Generator[MagicMock, None, None]:
     """Provide a mock KaggleApi instance for offline testing."""
-    with patch("kagglerun.client.get_kaggle_api") as mock_get_api, patch(
-        "kagglerun.dataset.get_kaggle_api"
-    ) as mock_get_dataset_api:
+    with (
+        patch("kagglerun.client.get_kaggle_api") as mock_get_api,
+        patch("kagglerun.dataset.get_kaggle_api") as mock_get_dataset_api,
+    ):
         api_instance = MagicMock()
         api_instance.get_config_value.return_value = "testuser"
         api_instance.config_values = {"username": "testuser"}

@@ -136,13 +136,41 @@ def cancel_kernel(kernel_id: str) -> bool:
         True if cancellation was signaled, False otherwise.
     """
     api = get_kaggle_api()
+    logger.info("Requesting cancellation for kernel '%s'...", kernel_id)
     try:
-        logger.info("Requesting cancellation for kernel '%s'...", kernel_id)
-        api.kernels_cancel(kernel_id)
-        logger.info("Cancellation request sent for '%s'.", kernel_id)
-        return True
+        if hasattr(api, "kernels_cancel"):
+            api.kernels_cancel(kernel_id)
+            logger.info("Cancellation request sent for '%s'.", kernel_id)
+            return True
+
+        # Attempt cancellation via kagglesdk if available
+        if hasattr(api, "build_kaggle_client"):
+            try:
+                from kagglesdk.kernels.types.kernels_api_service import (  # type: ignore[import-untyped]
+                    ApiCancelKernelSessionRequest,
+                )
+
+                with api.build_kaggle_client() as k:
+                    req = ApiCancelKernelSessionRequest()
+                    k.kernels.kernels_api_client.cancel_kernel_session(req)
+                    return True
+            except Exception as rpc_err:
+                logger.debug("RPC session cancel attempt note: %s", rpc_err)
+
+        logger.warning(
+            "Kaggle's public API does not support programmatic session cancellation. "
+            "To terminate this kernel, click 'Cancel' / 'Stop' in the Kaggle web interface: "
+            "https://www.kaggle.com/code/%s",
+            kernel_id,
+        )
+        return False
     except Exception as e:
-        logger.error("Failed to cancel kernel '%s': %s", kernel_id, e)
+        logger.error(
+            "Failed to cancel kernel '%s': %s. To cancel manually: https://www.kaggle.com/code/%s",
+            kernel_id,
+            e,
+            kernel_id,
+        )
         return False
 
 

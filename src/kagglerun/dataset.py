@@ -70,9 +70,14 @@ def push_dataset(
 
     dataset_exists = False
     try:
-        status = api.dataset_status(dataset_id)
-        if status:
-            dataset_exists = True
+        datasets = api.dataset_list(user=user, search=config.slug)
+        for ds in datasets:
+            ref = getattr(ds, "ref", None) or (
+                ds.get("ref") if isinstance(ds, dict) else ""
+            )
+            if ref == dataset_id:
+                dataset_exists = True
+                break
     except Exception:
         dataset_exists = False
 

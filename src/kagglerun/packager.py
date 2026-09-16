@@ -106,20 +106,34 @@ def package_local_data(
         return None
 
     output_zip.parent.mkdir(parents=True, exist_ok=True)
-    filt = ignore_filter or IgnoreFilter(base_dir=base_dir)
+    filt = ignore_filter or IgnoreFilter(
+        base_dir=base_dir, use_gitignore=False, use_kaggleignore=False
+    )
     file_count = 0
 
     with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in data_paths:
-            resolved_p = p.resolve() if p.is_absolute() else (base_dir / p).resolve()
+            if p.is_absolute():
+                resolved_p = p.resolve()
+            elif (Path.cwd() / p).resolve().exists():
+                resolved_p = (Path.cwd() / p).resolve()
+            else:
+                resolved_p = (base_dir / p).resolve()
+
             if not resolved_p.exists():
                 logger.warning("Data path does not exist: %s", resolved_p)
                 continue
 
+            ref_dir = base_dir.resolve()
+            try:
+                resolved_p.relative_to(ref_dir)
+            except ValueError:
+                ref_dir = resolved_p.parent
+
             if resolved_p.is_file():
                 if not filt.should_ignore(resolved_p):
                     try:
-                        arc_name = str(resolved_p.relative_to(base_dir.resolve()))
+                        arc_name = str(resolved_p.relative_to(ref_dir))
                     except ValueError:
                         arc_name = resolved_p.name
                     zf.write(resolved_p, arcname=arc_name)
@@ -128,7 +142,7 @@ def package_local_data(
                 for f in resolved_p.rglob("*"):
                     if f.is_file() and not filt.should_ignore(f):
                         try:
-                            arc_name = str(f.relative_to(base_dir.resolve()))
+                            arc_name = str(f.relative_to(ref_dir))
                         except ValueError:
                             arc_name = str(f.relative_to(resolved_p.parent))
                         zf.write(f, arcname=arc_name)

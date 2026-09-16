@@ -1,0 +1,6 @@
+[project]
+name = "demo_module"
+version = "0.1.0"
+description = "Demo package for testing module upload and packaging"
+requires-python = ">=3.9"
+dependencies = []
