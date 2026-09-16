@@ -2,9 +2,8 @@
 
 import json
 import logging
-from pathlib import Path
-from typing import List, Optional
 import zipfile
+from pathlib import Path
 
 from kagglex.config import RunConfig
 from kagglex.ignore import IgnoreFilter
@@ -19,8 +18,8 @@ MAX_KERNEL_UPLOAD_BYTES = 80 * 1024 * 1024
 def package_project(
     project_dir: Path,
     output_zip: Path,
-    target_file: Optional[Path] = None,
-    ignore_filter: Optional[IgnoreFilter] = None,
+    target_file: Path | None = None,
+    ignore_filter: IgnoreFilter | None = None,
 ) -> Path:
     """Package project files into a zip archive based on detected project layout.
 
@@ -86,11 +85,11 @@ def package_project(
 
 
 def package_local_data(
-    data_paths: List[Path],
+    data_paths: list[Path],
     base_dir: Path,
     output_zip: Path,
-    ignore_filter: Optional[IgnoreFilter] = None,
-) -> Optional[Path]:
+    ignore_filter: IgnoreFilter | None = None,
+) -> Path | None:
     """Package small local data files or manifests into a data zip archive.
 
     Args:

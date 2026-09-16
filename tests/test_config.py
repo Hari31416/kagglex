@@ -1,6 +1,7 @@
 """Unit tests for configuration models and validations."""
 
 from pathlib import Path
+
 import pytest
 
 from kagglex.config import DatasetConfig, RunConfig, slugify

@@ -7,10 +7,10 @@ name = "kagglex"
 version = "0.1.0"
 description = "Execute local Python code, modules, and experiments seamlessly on Kaggle GPUs."
 readme = "README.md"
-license = "MIT"
+license = {file = "LICENSE"}
 requires-python = ">=3.9"
 authors = [
-    { name = "Developer", email = "dev@example.com" }
+    { name = "Harikesh Kushwaha", email = "harikeshkumar0926@gmail.com" }
 ]
 keywords = ["kaggle", "gpu", "machine-learning", "deep-learning", "cli"]
 classifiers = [
@@ -19,6 +19,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
     "kaggle>=1.6.0",
@@ -27,13 +31,49 @@ dependencies = [
     "websocket-client>=1.7.0",
 ]
 
-[project.optional-dependencies]
+[project.urls]
+Homepage = "https://github.com/Hari31416/kagglex"
+Repository = "https://github.com/Hari31416/kagglex"
+Issues = "https://github.com/Hari31416/kagglex/issues"
+
+[dependency-groups]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
     "black>=24.0.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
+    "pre-commit>=4.0.0",
 ]
+
 
 [project.scripts]
 kagglex = "kagglex.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.black]
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+target-version = "py310"
+
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+]
+ignore = [
+    "E501",  # line too long — handled by black
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kagglex"]

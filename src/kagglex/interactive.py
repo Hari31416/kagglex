@@ -1,14 +1,14 @@
 """Interactive Jupyter Proxy client for sub-second REPL execution and file operations."""
 
 import base64
-from datetime import datetime
 import json
 import logging
-from pathlib import Path
 import time
-from typing import Any, Callable, Dict, List, Optional
-from urllib.parse import parse_qs, urlparse
 import uuid
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import requests
 import websocket
@@ -23,16 +23,16 @@ class JupyterProxyClient:
         self,
         base_url: str,
         timeout: int = 120,
-        on_output: Optional[Callable[[str], None]] = None,
+        on_output: Callable[[str], None] | None = None,
     ) -> None:
         self.default_timeout = timeout
         self.on_output = on_output
         self.session_id = uuid.uuid4().hex
-        self.kernel_id: Optional[str] = None
+        self.kernel_id: str | None = None
         self._session = requests.Session()
 
         parsed = urlparse(base_url.strip())
-        self._token: Optional[str] = None
+        self._token: str | None = None
 
         if parsed.query and "token=" in parsed.query:
             query_params = parse_qs(parsed.query)
@@ -128,9 +128,9 @@ class JupyterProxyClient:
     def execute(
         self,
         code: str,
-        timeout: Optional[int] = None,
-        on_output: Optional[Callable[[str], None]] = None,
-    ) -> Dict[str, Any]:
+        timeout: int | None = None,
+        on_output: Callable[[str], None] | None = None,
+    ) -> dict[str, Any]:
         """Execute Python code on the remote Jupyter kernel via WebSocket.
 
         Args:
@@ -171,11 +171,11 @@ class JupyterProxyClient:
 
         ws.send(json.dumps(execute_msg))
 
-        output_chunks: List[str] = []
+        output_chunks: list[str] = []
         has_error = False
-        error_name: Optional[str] = None
-        error_value: Optional[str] = None
-        traceback_list: List[str] = []
+        error_name: str | None = None
+        error_value: str | None = None
+        traceback_list: list[str] = []
 
         start_time = time.time()
 
@@ -305,7 +305,7 @@ class JupyterProxyClient:
 
         return local_path
 
-    def list_files(self, remote_path: str = "") -> List[Dict[str, Any]]:
+    def list_files(self, remote_path: str = "") -> list[dict[str, Any]]:
         """List files and folders in the remote working directory."""
         clean_path = remote_path.lstrip("/")
         r = self._session.get(

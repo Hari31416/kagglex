@@ -1,10 +1,9 @@
 """Workspace inspection, project type detection, and pre-flight validation."""
 
 import ast
-from enum import Enum
 import logging
+from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ class ProjectType(str, Enum):
     SIMPLE_DIRECTORY = "simple_directory"
 
 
-def find_repo_root(start_dir: Optional[Path] = None) -> Path:
+def find_repo_root(start_dir: Path | None = None) -> Path:
     """Find the root of the project or repository.
 
     Searches upward for .git, pyproject.toml, setup.py, setup.cfg, or requirements.txt.
@@ -39,7 +38,7 @@ def find_repo_root(start_dir: Optional[Path] = None) -> Path:
     return current
 
 
-def detect_project_type(target_path: Path) -> Tuple[ProjectType, Path]:
+def detect_project_type(target_path: Path) -> tuple[ProjectType, Path]:
     """Identify project structure and canonical root path.
 
     Args:
@@ -100,7 +99,7 @@ def validate_python_syntax(file_path: Path) -> None:
         raise
 
 
-def extract_script_path_from_command(command: str, base_dir: Path) -> Optional[Path]:
+def extract_script_path_from_command(command: str, base_dir: Path) -> Path | None:
     """Attempt to locate target Python script from command string for syntax validation.
 
     Handles 'python train.py', 'python3 path/to/script.py', etc.
@@ -124,9 +123,9 @@ def extract_script_path_from_command(command: str, base_dir: Path) -> Optional[P
     return None
 
 
-def detect_dependencies(project_dir: Path) -> List[str]:
+def detect_dependencies(project_dir: Path) -> list[str]:
     """Detect declared dependencies in project directory."""
-    deps: List[str] = []
+    deps: list[str] = []
     req_file = project_dir / "requirements.txt"
     if req_file.exists():
         for line in req_file.read_text(encoding="utf-8").splitlines():

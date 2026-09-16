@@ -1,11 +1,10 @@
 """Local experiment run history repository and state tracking."""
 
-from dataclasses import asdict, dataclass
 import json
 import logging
+from dataclasses import asdict, dataclass
 from pathlib import Path
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +20,13 @@ class RunRecord:
     accelerator: str
     submitted_at: str
     status: str = "queued"
-    duration_sec: Optional[float] = None
-    output_dir: Optional[str] = None
-    url: Optional[str] = None
-    error_message: Optional[str] = None
+    duration_sec: float | None = None
+    output_dir: str | None = None
+    url: str | None = None
+    error_message: str | None = None
 
 
-def get_history_file(repo_root: Optional[Path] = None) -> Path:
+def get_history_file(repo_root: Path | None = None) -> Path:
     """Get path to local or user-level run history file."""
     if repo_root:
         hist_dir = repo_root / ".kagglex"
@@ -44,14 +43,14 @@ def get_history_file(repo_root: Optional[Path] = None) -> Path:
     return target_file
 
 
-def load_all_records(repo_root: Optional[Path] = None) -> List[Dict[str, Any]]:
+def load_all_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
     """Read all recorded runs from history file."""
     hist_file = get_history_file(repo_root)
     if not hist_file.exists():
         return []
 
     try:
-        with open(hist_file, "r", encoding="utf-8") as f:
+        with open(hist_file, encoding="utf-8") as f:
             data = json.load(f)
             if isinstance(data, list):
                 return data
@@ -61,7 +60,7 @@ def load_all_records(repo_root: Optional[Path] = None) -> List[Dict[str, Any]]:
 
 
 def save_all_records(
-    records: List[Dict[str, Any]], repo_root: Optional[Path] = None
+    records: list[dict[str, Any]], repo_root: Path | None = None
 ) -> None:
     """Write all records to history file."""
     hist_file = get_history_file(repo_root)
@@ -72,7 +71,7 @@ def save_all_records(
         logger.warning("Could not write history file %s: %s", hist_file, e)
 
 
-def record_run(record: RunRecord, repo_root: Optional[Path] = None) -> None:
+def record_run(record: RunRecord, repo_root: Path | None = None) -> None:
     """Append or update a run in local history."""
     records = load_all_records(repo_root)
     record_dict = asdict(record)
@@ -96,9 +95,9 @@ def record_run(record: RunRecord, repo_root: Optional[Path] = None) -> None:
 
 def update_run(
     kernel_id_or_slug: str,
-    updates: Dict[str, Any],
-    repo_root: Optional[Path] = None,
-) -> Optional[RunRecord]:
+    updates: dict[str, Any],
+    repo_root: Path | None = None,
+) -> RunRecord | None:
     """Update attributes of an existing run record."""
     records = load_all_records(repo_root)
     target_idx = -1
@@ -121,9 +120,7 @@ def update_run(
     return RunRecord(**rec_dict)
 
 
-def get_run(
-    kernel_id_or_slug: str, repo_root: Optional[Path] = None
-) -> Optional[RunRecord]:
+def get_run(kernel_id_or_slug: str, repo_root: Path | None = None) -> RunRecord | None:
     """Find a run record by kernel id or slug."""
     records = load_all_records(repo_root)
     for r in records:
@@ -136,10 +133,10 @@ def get_run(
     return None
 
 
-def list_runs(limit: int = 20, repo_root: Optional[Path] = None) -> List[RunRecord]:
+def list_runs(limit: int = 20, repo_root: Path | None = None) -> list[RunRecord]:
     """List recent run records ordered by submission time."""
     records = load_all_records(repo_root)
-    results: List[RunRecord] = []
+    results: list[RunRecord] = []
     for r in records[:limit]:
         try:
             results.append(RunRecord(**r))

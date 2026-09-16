@@ -1,8 +1,8 @@
 """Runner entrypoint inside demo_module."""
 
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from demo_module import __version__
 

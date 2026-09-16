@@ -2,13 +2,12 @@
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Set
 
 import pathspec
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_IGNORE_PATTERNS: List[str] = [
+DEFAULT_IGNORE_PATTERNS: list[str] = [
     # VCS
     ".git",
     ".git/**",
@@ -64,12 +63,12 @@ class IgnoreFilter:
     def __init__(
         self,
         base_dir: Path,
-        custom_patterns: Optional[List[str]] = None,
+        custom_patterns: list[str] | None = None,
         use_gitignore: bool = True,
         use_kaggleignore: bool = True,
     ) -> None:
         self.base_dir = base_dir.resolve()
-        patterns: List[str] = list(DEFAULT_IGNORE_PATTERNS)
+        patterns: list[str] = list(DEFAULT_IGNORE_PATTERNS)
 
         if use_gitignore:
             gi = self.base_dir / ".gitignore"
@@ -87,9 +86,9 @@ class IgnoreFilter:
         self.spec = pathspec.PathSpec.from_lines("gitignore", patterns)
 
     @staticmethod
-    def _read_patterns_file(path: Path) -> List[str]:
+    def _read_patterns_file(path: Path) -> list[str]:
         """Read ignore patterns from file."""
-        lines: List[str] = []
+        lines: list[str] = []
         try:
             for line in path.read_text(encoding="utf-8").splitlines():
                 stripped = line.strip()

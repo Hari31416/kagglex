@@ -3,9 +3,8 @@
 import argparse
 import logging
 import os
-from pathlib import Path
 import sys
-from typing import Dict, List, Optional
+from pathlib import Path
 
 from kagglex.api import KaggleRunner
 from kagglex.client import (
@@ -14,14 +13,12 @@ from kagglex.client import (
     check_kaggle_health,
     get_authenticated_username,
     get_kernel_status,
-    poll_kernel,
     pull_kernel_output,
-    push_kernel,
     stream_kernel_logs,
 )
 from kagglex.config import DatasetConfig, RunConfig
 from kagglex.dataset import create_dataset_metadata, push_dataset
-from kagglex.history import get_run, list_runs, update_run
+from kagglex.history import list_runs, update_run
 from kagglex.workspace import find_repo_root
 
 logger = logging.getLogger("kagglex")
@@ -37,11 +34,9 @@ def setup_logging(verbose: bool = False) -> None:
     )
 
 
-def parse_env_args(
-    env_items: Optional[List[str]], env_file: Optional[str]
-) -> Dict[str, str]:
+def parse_env_args(env_items: list[str] | None, env_file: str | None) -> dict[str, str]:
     """Parse --env KEY=VAL arguments and optional .env file."""
-    env_dict: Dict[str, str] = {}
+    env_dict: dict[str, str] = {}
 
     if env_file:
         env_path = Path(env_file).resolve()
@@ -685,7 +680,7 @@ def create_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(args_list: Optional[List[str]] = None) -> int:
+def main(args_list: list[str] | None = None) -> int:
     """Main CLI entrypoint."""
     parser = create_parser()
     args = parser.parse_args(args_list)

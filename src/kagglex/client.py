@@ -3,12 +3,13 @@
 import fnmatch
 import json
 import logging
-from pathlib import Path
 import shutil
 import sys
 import tempfile
 import time
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,9 @@ DEFAULT_OUTPUT_EXCLUDES = [
 def get_kaggle_api() -> Any:
     """Instantiate and authenticate KaggleApi client."""
     try:
-        from kaggle.api.kaggle_api_extended import KaggleApi  # type: ignore[import-untyped]
+        from kaggle.api.kaggle_api_extended import (
+            KaggleApi,  # type: ignore[import-untyped]
+        )
 
         api = KaggleApi()
         api.authenticate()
@@ -41,7 +44,7 @@ def get_kaggle_api() -> Any:
         ) from e
 
 
-def check_kaggle_health() -> Tuple[bool, str]:
+def check_kaggle_health() -> tuple[bool, str]:
     """Verify Kaggle credentials and network reachability.
 
     Returns:
@@ -69,7 +72,7 @@ def get_authenticated_username() -> str:
     return str(username)
 
 
-def verify_dataset_sources(dataset_slugs: List[str]) -> List[str]:
+def verify_dataset_sources(dataset_slugs: list[str]) -> list[str]:
     """Check existence of requested dataset sources on Kaggle.
 
     Returns:
@@ -91,7 +94,7 @@ def verify_dataset_sources(dataset_slugs: List[str]) -> List[str]:
     return missing
 
 
-def push_kernel(staging_dir: Path) -> Tuple[str, str]:
+def push_kernel(staging_dir: Path) -> tuple[str, str]:
     """Push staged kernel directory to Kaggle.
 
     Args:
@@ -104,7 +107,7 @@ def push_kernel(staging_dir: Path) -> Tuple[str, str]:
     if not metadata_file.exists():
         raise FileNotFoundError(f"kernel-metadata.json not found in {staging_dir}")
 
-    with open(metadata_file, "r", encoding="utf-8") as f:
+    with open(metadata_file, encoding="utf-8") as f:
         meta = json.load(f)
     fallback_id = meta.get("id", "")
 
@@ -174,7 +177,7 @@ def cancel_kernel(kernel_id: str) -> bool:
         return False
 
 
-def get_kernel_status(kernel_id: str) -> Dict[str, Any]:
+def get_kernel_status(kernel_id: str) -> dict[str, Any]:
     """Fetch execution status for a Kaggle kernel.
 
     Args:
@@ -190,7 +193,7 @@ def get_kernel_status(kernel_id: str) -> Dict[str, Any]:
     failure_msg = None
 
     if hasattr(status_obj, "status"):
-        val = getattr(status_obj, "status")
+        val = status_obj.status
         status_str = getattr(val, "name", str(val)).lower()
         failure_msg = getattr(status_obj, "failure_message", None)
     elif isinstance(status_obj, dict):
@@ -213,8 +216,8 @@ def poll_kernel(
     kernel_id: str,
     poll_interval_sec: int = 20,
     timeout_sec: int = 43200,
-    on_status_change: Optional[Callable[[str, float], None]] = None,
-) -> Dict[str, Any]:
+    on_status_change: Callable[[str, float], None] | None = None,
+) -> dict[str, Any]:
     """Poll kernel status until completion, failure, or timeout.
 
     Args:
@@ -270,7 +273,7 @@ def poll_kernel(
 
 
 def stream_kernel_logs(
-    kernel_id: str, on_line: Optional[Callable[[str], None]] = None
+    kernel_id: str, on_line: Callable[[str], None] | None = None
 ) -> None:
     """Stream live logs from a running Kaggle kernel.
 
@@ -292,7 +295,7 @@ def stream_kernel_logs(
         logger.debug("Log streaming completed or unavailable: %s", e)
 
 
-def _match_pattern(rel_path_str: str, patterns: List[str]) -> bool:
+def _match_pattern(rel_path_str: str, patterns: list[str]) -> bool:
     """Check if path string matches any glob pattern."""
     for pat in patterns:
         if fnmatch.fnmatch(rel_path_str, pat) or fnmatch.fnmatch(
@@ -307,9 +310,9 @@ def _match_pattern(rel_path_str: str, patterns: List[str]) -> bool:
 def pull_kernel_output(
     kernel_id: str,
     destination_dir: Path,
-    include_patterns: Optional[List[str]] = None,
-    exclude_patterns: Optional[List[str]] = None,
-) -> List[Path]:
+    include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
+) -> list[Path]:
     """Download output artifacts from a completed Kaggle kernel with selective filtering.
 
     Args:
@@ -328,7 +331,7 @@ def pull_kernel_output(
     api = get_kaggle_api()
 
     # Determine server-side fetch patterns
-    patterns_to_fetch: List[Optional[str]] = []
+    patterns_to_fetch: list[str | None] = []
     if include_patterns:
         for pat in include_patterns:
             if pat.endswith("/**"):
@@ -338,7 +341,7 @@ def pull_kernel_output(
     else:
         patterns_to_fetch = ["outputs/*"]
 
-    saved_files: List[Path] = []
+    saved_files: list[Path] = []
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
@@ -384,8 +387,8 @@ def pull_kernel_output(
 def append_experiment_record(
     record_file: Path,
     kernel_id: str,
-    status_info: Dict[str, Any],
-    output_dir: Optional[Path] = None,
+    status_info: dict[str, Any],
+    output_dir: Path | None = None,
 ) -> None:
     """Update or append Kaggle execution details to an experiment record file."""
     if not record_file.exists():

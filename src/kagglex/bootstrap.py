@@ -4,7 +4,6 @@ import base64
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from kagglex.config import RunConfig
 
@@ -296,8 +295,8 @@ if __name__ == "__main__":
 def generate_bootstrap_script(
     config: RunConfig,
     output_path: Path,
-    pkg_zip_path: Optional[Path] = None,
-    data_zip_path: Optional[Path] = None,
+    pkg_zip_path: Path | None = None,
+    data_zip_path: Path | None = None,
 ) -> Path:
     """Generate kaggle_bootstrap.py with injected parameters.
 

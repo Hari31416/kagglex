@@ -1,14 +1,13 @@
 """Configuration models and validation rules for kagglex."""
 
-from dataclasses import dataclass, field
 import logging
-from pathlib import Path
 import re
-from typing import Dict, List, Optional, Set
+from dataclasses import dataclass, field
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_ACCELERATORS: Set[str] = {
+SUPPORTED_ACCELERATORS: set[str] = {
     "t4-2x",
     "p100",
     "v3-8",
@@ -34,23 +33,23 @@ class RunConfig:
 
     command: str
     title: str
-    slug: Optional[str] = None
-    project_dir: Optional[Path] = None
-    target_file: Optional[Path] = None
+    slug: str | None = None
+    project_dir: Path | None = None
+    target_file: Path | None = None
     gpu_type: str = "t4-2x"
     enable_tpu: bool = False
     multi_gpu: bool = False
     enable_internet: bool = True
-    dataset_slugs: List[str] = field(default_factory=list)
-    include_data: List[str] = field(default_factory=list)
-    extra_pip_deps: List[str] = field(default_factory=list)
-    env_vars: Dict[str, str] = field(default_factory=dict)
-    kaggle_secrets: List[str] = field(default_factory=list)
-    parent_kernels: List[str] = field(default_factory=list)
-    output_dir: Optional[Path] = None
-    record_file: Optional[Path] = None
-    include_outputs: List[str] = field(default_factory=list)
-    exclude_outputs: List[str] = field(default_factory=list)
+    dataset_slugs: list[str] = field(default_factory=list)
+    include_data: list[str] = field(default_factory=list)
+    extra_pip_deps: list[str] = field(default_factory=list)
+    env_vars: dict[str, str] = field(default_factory=dict)
+    kaggle_secrets: list[str] = field(default_factory=list)
+    parent_kernels: list[str] = field(default_factory=list)
+    output_dir: Path | None = None
+    record_file: Path | None = None
+    include_outputs: list[str] = field(default_factory=list)
+    exclude_outputs: list[str] = field(default_factory=list)
     poll_interval: int = 20
     timeout_sec: int = 43200
 
@@ -97,7 +96,7 @@ class DatasetConfig:
 
     title: str
     data_dir: Path
-    slug: Optional[str] = None
+    slug: str | None = None
     is_public: bool = False
     license_name: str = "CC0-1.0"
 
@@ -132,7 +131,7 @@ class InteractiveConfig:
     verbose: bool = True
 
 
-def resolve_jupyter_url(explicit_url: Optional[str] = None) -> Optional[str]:
+def resolve_jupyter_url(explicit_url: str | None = None) -> str | None:
     """Resolve Kaggle Jupyter URL from parameter or KAGGLE_JUPYTER_URL env var."""
     import os
 

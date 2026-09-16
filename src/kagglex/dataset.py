@@ -3,7 +3,6 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from kagglex.client import get_authenticated_username, get_kaggle_api
 from kagglex.config import DatasetConfig
@@ -44,7 +43,7 @@ def create_dataset_metadata(
 def push_dataset(
     config: DatasetConfig,
     version_notes: str = "Update dataset files",
-    username: Optional[str] = None,
+    username: str | None = None,
 ) -> str:
     """Create or update a dataset on Kaggle.
 

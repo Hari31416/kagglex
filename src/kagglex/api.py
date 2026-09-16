@@ -1,10 +1,10 @@
 """Programmatic Python API for kagglex."""
 
-import json
 import logging
-from pathlib import Path
 import time
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 from kagglex.bootstrap import generate_bootstrap_script
 from kagglex.client import (
@@ -24,8 +24,6 @@ from kagglex.packager import (
     package_project,
 )
 from kagglex.workspace import (
-    ProjectType,
-    detect_project_type,
     extract_script_path_from_command,
     find_repo_root,
     validate_python_syntax,
@@ -44,7 +42,7 @@ class Job:
         self.url = url
         self.config = config
         self.repo_root = repo_root
-        self._last_status_info: Optional[Dict[str, Any]] = None
+        self._last_status_info: dict[str, Any] | None = None
 
     @property
     def status(self) -> str:
@@ -54,16 +52,16 @@ class Job:
         return str(status_info.get("status", "unknown"))
 
     @property
-    def last_status_info(self) -> Optional[Dict[str, Any]]:
+    def last_status_info(self) -> dict[str, Any] | None:
         """Cached or last fetched status dictionary."""
         return self._last_status_info
 
     def wait(
         self,
-        poll_interval_sec: Optional[int] = None,
-        timeout_sec: Optional[int] = None,
-        on_status_change: Optional[Callable[[str, float], None]] = None,
-    ) -> Dict[str, Any]:
+        poll_interval_sec: int | None = None,
+        timeout_sec: int | None = None,
+        on_status_change: Callable[[str, float], None] | None = None,
+    ) -> dict[str, Any]:
         """Block until kernel terminates (complete, error, cancel).
 
         Args:
@@ -94,7 +92,7 @@ class Job:
         )
         return info
 
-    def stream_logs(self, on_line: Optional[Callable[[str], None]] = None) -> None:
+    def stream_logs(self, on_line: Callable[[str], None] | None = None) -> None:
         """Stream live execution logs to stdout or callback."""
         stream_kernel_logs(self.kernel_id, on_line=on_line)
 
@@ -109,10 +107,10 @@ class Job:
 
     def pull_outputs(
         self,
-        destination_dir: Optional[Path] = None,
-        include_patterns: Optional[List[str]] = None,
-        exclude_patterns: Optional[List[str]] = None,
-    ) -> List[Path]:
+        destination_dir: Path | None = None,
+        include_patterns: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+    ) -> list[Path]:
         """Download output files from completed job."""
         dest = destination_dir or self.config.output_dir or (self.repo_root / "outputs")
         inc = include_patterns or self.config.include_outputs
@@ -132,13 +130,11 @@ class KaggleRunner:
 
     def __init__(
         self,
-        repo_root: Optional[Path] = None,
-        staging_dir: Optional[Path] = None,
+        repo_root: Path | None = None,
+        staging_dir: Path | None = None,
     ) -> None:
         self.repo_root = (repo_root or find_repo_root()).resolve()
-        self.staging_dir = staging_dir or (
-            self.repo_root / ".kagglex" / "staging"
-        )
+        self.staging_dir = staging_dir or (self.repo_root / ".kagglex" / "staging")
 
     def stage(self, config: RunConfig) -> Path:
         """Stage project files, payloads, and bootstrap scripts locally."""
@@ -195,9 +191,9 @@ class KaggleRunner:
 
     def run(
         self,
-        config: Optional[RunConfig] = None,
-        command: Optional[str] = None,
-        title: Optional[str] = None,
+        config: RunConfig | None = None,
+        command: str | None = None,
+        title: str | None = None,
         wait: bool = True,
         stream: bool = False,
         pull: bool = True,
@@ -246,7 +242,7 @@ class KaggleRunner:
 
         return job
 
-    def list_runs(self, limit: int = 20) -> List[RunRecord]:
+    def list_runs(self, limit: int = 20) -> list[RunRecord]:
         """List recent runs from local history."""
         return list_runs(limit=limit, repo_root=self.repo_root)
 

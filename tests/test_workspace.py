@@ -1,6 +1,7 @@
 """Unit tests for workspace detection and pre-flight validation."""
 
 from pathlib import Path
+
 import pytest
 
 from kagglex.workspace import (

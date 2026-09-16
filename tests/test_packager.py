@@ -1,8 +1,8 @@
 """Unit tests for packaging and metadata generation."""
 
 import json
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 from kagglex.config import RunConfig
 from kagglex.packager import (
@@ -72,7 +72,7 @@ def test_create_kernel_metadata(tmp_path: Path) -> None:
     )
 
     assert meta_file.exists()
-    with open(meta_file, "r", encoding="utf-8") as f:
+    with open(meta_file, encoding="utf-8") as f:
         meta = json.load(f)
 
     assert meta["id"] == "testuser/bert-exp"
