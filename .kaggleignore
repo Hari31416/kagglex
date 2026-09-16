@@ -1,0 +1,32 @@
+# Ignore environments and caches
+.venv
+venv
+env
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.git
+.DS_Store
+
+# Ignore build and packaging
+build/
+dist/
+*.egg-info/
+
+# Ignore outputs, local runs, checkpoints, and weights
+outputs/
+artifacts/
+experiments/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+
+# Ignore local datasets
+data/
+datasets/
+.kagglerun/
