@@ -11,8 +11,9 @@ from kagglex.workspace import ProjectType, detect_project_type
 
 logger = logging.getLogger(__name__)
 
-# Kaggle kernel uploads have a hard size limit (100MB). Keep safe margin at 80MB.
-MAX_KERNEL_UPLOAD_BYTES = 80 * 1024 * 1024
+# Inline code payload limit for Kaggle kernels (5 MB).
+MAX_PAYLOAD_BYTES = 5 * 1024 * 1024
+MAX_KERNEL_UPLOAD_BYTES = MAX_PAYLOAD_BYTES
 
 
 def package_project(
@@ -67,10 +68,10 @@ def package_project(
     size_bytes = output_zip.stat().st_size
     size_mb = size_bytes / (1024 * 1024)
 
-    if size_bytes > MAX_KERNEL_UPLOAD_BYTES:
+    if size_bytes > MAX_PAYLOAD_BYTES:
         raise ValueError(
-            f"Bundled project size ({size_mb:.1f} MB) exceeds maximum upload limit "
-            f"({MAX_KERNEL_UPLOAD_BYTES / (1024 * 1024):.0f} MB). "
+            f"Bundled project size ({size_mb:.2f} MB) exceeds maximum limit "
+            f"({MAX_PAYLOAD_BYTES / (1024 * 1024):.0f} MB). "
             "Please add large files to .gitignore or .kaggleignore, or push them as a Kaggle Dataset."
         )
 
@@ -154,10 +155,10 @@ def package_local_data(
 
     size_bytes = output_zip.stat().st_size
     size_mb = size_bytes / (1024 * 1024)
-    if size_bytes > MAX_KERNEL_UPLOAD_BYTES:
+    if size_bytes > MAX_PAYLOAD_BYTES:
         raise ValueError(
-            f"Bundled data size ({size_mb:.1f} MB) exceeds maximum upload limit "
-            f"({MAX_KERNEL_UPLOAD_BYTES / (1024 * 1024):.0f} MB). "
+            f"Bundled data size ({size_mb:.2f} MB) exceeds maximum upload limit "
+            f"({MAX_PAYLOAD_BYTES / (1024 * 1024):.0f} MB). "
             "Please upload large datasets using `kagglex dataset push`."
         )
 

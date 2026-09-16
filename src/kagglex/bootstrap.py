@@ -310,20 +310,25 @@ def generate_bootstrap_script(
         Path to generated bootstrap script.
     """
     pkg_b64 = ""
-    # Only inline base64 if small (< 5MB) for resilient fallback
-    if (
-        pkg_zip_path
-        and pkg_zip_path.exists()
-        and pkg_zip_path.stat().st_size < 5 * 1024 * 1024
-    ):
+    if pkg_zip_path and pkg_zip_path.exists():
+        pkg_size = pkg_zip_path.stat().st_size
+        if pkg_size > 5 * 1024 * 1024:
+            size_mb = pkg_size / (1024 * 1024)
+            raise ValueError(
+                f"pkg_payload.zip size ({size_mb:.2f} MB) exceeds the 5 MB limit. "
+                "Reduce payload size using .gitignore/.kaggleignore or push large assets as a Kaggle Dataset."
+            )
         pkg_b64 = base64.b64encode(pkg_zip_path.read_bytes()).decode("ascii")
 
     data_b64 = ""
-    if (
-        data_zip_path
-        and data_zip_path.exists()
-        and data_zip_path.stat().st_size < 5 * 1024 * 1024
-    ):
+    if data_zip_path and data_zip_path.exists():
+        data_size = data_zip_path.stat().st_size
+        if data_size > 5 * 1024 * 1024:
+            size_mb = data_size / (1024 * 1024)
+            raise ValueError(
+                f"data_payload.zip size ({size_mb:.2f} MB) exceeds the 5 MB limit. "
+                "Upload large datasets using `kagglex dataset push` instead."
+            )
         data_b64 = base64.b64encode(data_zip_path.read_bytes()).decode("ascii")
 
     script_content = (

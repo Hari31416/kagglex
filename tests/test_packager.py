@@ -1,11 +1,15 @@
 """Unit tests for packaging and metadata generation."""
 
 import json
+import os
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from kagglex.config import RunConfig
 from kagglex.packager import (
+    MAX_PAYLOAD_BYTES,
     create_kernel_metadata,
     package_local_data,
     package_project,
@@ -81,3 +85,25 @@ def test_create_kernel_metadata(tmp_path: Path) -> None:
     assert meta["enable_tpu"] == "false"
     assert meta["dataset_sources"] == ["user/custom-data", "testuser/external-dataset"]
     assert meta["kernel_sources"] == ["user/prep-step-1"]
+
+
+def test_package_project_size_limit_exceeded(tmp_path: Path) -> None:
+    """Test that package_project raises ValueError when pkg_payload.zip > 5 MB."""
+    proj_dir = tmp_path / "large_proj"
+    proj_dir.mkdir(parents=True)
+    # Write 6 MB of random bytes to avoid high zip compression ratio
+    (proj_dir / "large.dat").write_bytes(os.urandom(6 * 1024 * 1024))
+
+    output_zip = tmp_path / "pkg_payload.zip"
+    with pytest.raises(ValueError, match=r"exceeds maximum limit \(5 MB\)"):
+        package_project(proj_dir, output_zip)
+
+
+def test_package_local_data_size_limit_exceeded(tmp_path: Path) -> None:
+    """Test that package_local_data raises ValueError when data_payload.zip > 5 MB."""
+    data_file = tmp_path / "large_data.dat"
+    data_file.write_bytes(os.urandom(6 * 1024 * 1024))
+
+    out_zip = tmp_path / "data_payload.zip"
+    with pytest.raises(ValueError, match=r"exceeds maximum upload limit \(5 MB\)"):
+        package_local_data([data_file], base_dir=tmp_path, output_zip=out_zip)
