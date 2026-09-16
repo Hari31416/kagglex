@@ -243,12 +243,12 @@ def handle_list(args: argparse.Namespace) -> int:
             col_widths[i] = max(col_widths[i], len(val))
 
     fmt = "  ".join(f"{{:<{w}}}" for w in col_widths)
-    print()
-    print(fmt.format(*headers))
-    print("  ".join("-" * w for w in col_widths))
+    sys.stdout.write("\n")
+    sys.stdout.write(fmt.format(*headers) + "\n")
+    sys.stdout.write("  ".join("-" * w for w in col_widths) + "\n")
     for row in rows:
-        print(fmt.format(*row))
-    print()
+        sys.stdout.write(fmt.format(*row) + "\n")
+    sys.stdout.write("\n")
     return 0
 
 
@@ -275,7 +275,95 @@ def handle_dataset_push(args: argparse.Namespace) -> int:
 
     url = push_dataset(config, version_notes=args.notes)
     logger.info("Dataset available at: %s", url)
-    return 0
+
+
+def handle_exec(args: argparse.Namespace) -> int:
+    """Handle 'exec' subcommand for interactive Jupyter proxy execution."""
+    from kagglerun.config import resolve_jupyter_url
+    from kagglerun.interactive import JupyterProxyClient
+
+    url = resolve_jupyter_url(args.url)
+    if not url:
+        logger.error(
+            "Kaggle Jupyter URL not provided. Please supply --url <URL> or set the "
+            "KAGGLE_JUPYTER_URL environment variable.\n"
+            "(In a running Kaggle notebook, click: Run -> Kaggle Jupyter Server -> Copy URL)"
+        )
+        return 1
+
+    client = JupyterProxyClient(
+        base_url=url,
+        timeout=args.timeout,
+        on_output=lambda chunk: sys.stdout.write(chunk),
+    )
+
+    if args.test:
+        connected = client.test_connection()
+        if connected:
+            logger.info("Successfully connected to Kaggle Jupyter proxy server.")
+            return 0
+        else:
+            logger.error(
+                "Failed to connect to Kaggle Jupyter proxy server. Verify your URL and token."
+            )
+            return 1
+
+    if args.gpu_info:
+        info = client.get_gpu_info()
+        sys.stdout.write(info + "\n")
+        return 0
+
+    if args.list_files is not None:
+        target_dir = (
+            args.list_files
+            if isinstance(args.list_files, str) and args.list_files
+            else ""
+        )
+        files = client.list_files(target_dir)
+        for f in files:
+            t = "[DIR] " if f.get("type") == "directory" else "      "
+            sz = f"{f['size']}B" if f.get("size") is not None else ""
+            sys.stdout.write(f"{t} {f.get('name', ''):<30} {sz}\n")
+        return 0
+
+    if args.upload:
+        local_path = Path(args.upload).resolve()
+        remote_name = args.remote_name or local_path.name
+        ok = client.upload_file(local_path, remote_name)
+        if ok:
+            logger.info(
+                "Uploaded %s to /kaggle/working/%s", local_path.name, remote_name
+            )
+            return 0
+        else:
+            logger.error("Failed to upload file %s", local_path)
+            return 1
+
+    if args.download:
+        remote_name = args.download
+        local_dest = Path(args.output or (Path.cwd() / Path(remote_name).name))
+        client.download_file(remote_name, local_dest)
+        logger.info("Downloaded %s to %s", remote_name, local_dest)
+        return 0
+
+    # Execute code
+    code_to_run = args.code
+    if not code_to_run and args.file:
+        file_path = Path(args.file).resolve()
+        if not file_path.is_file():
+            logger.error("Specified script file does not exist: %s", file_path)
+            return 1
+        code_to_run = file_path.read_text(encoding="utf-8")
+
+    if not code_to_run:
+        logger.error(
+            "No code or script specified to execute. Use: kagglerun exec 'print(1)' or --file script.py"
+        )
+        return 1
+
+    res = client.execute(code_to_run, timeout=args.timeout)
+    sys.stdout.flush()
+    return 0 if res.get("success") else 1
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -517,7 +605,81 @@ def create_parser() -> argparse.ArgumentParser:
         "--notes", type=str, default="Upload dataset", help="Version description notes"
     )
     ds_push.add_argument(
-        "--dry-run", action="store_true", help="Generate metadata only"
+        "--dry-run",
+        action="store_true",
+        help="Stage dataset metadata locally without pushing",
+    )
+
+    # 9. 'exec' subcommand for interactive proxy execution
+    exec_p = subparsers.add_parser(
+        "exec",
+        help="Execute code interactively on an active Kaggle Jupyter session via proxy URL.",
+    )
+    exec_p.add_argument(
+        "code",
+        nargs="?",
+        default=None,
+        help="Python code string to execute (e.g. 'import torch; print(torch.cuda.is_available())')",
+    )
+    exec_p.add_argument(
+        "--url",
+        type=str,
+        default=None,
+        help="Kaggle Jupyter proxy URL (default: KAGGLE_JUPYTER_URL env var)",
+    )
+    exec_p.add_argument(
+        "--file",
+        type=str,
+        default=None,
+        help="Path to local Python script to execute remotely",
+    )
+    exec_p.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="Execution timeout in seconds (default: 120s)",
+    )
+    exec_p.add_argument(
+        "--test",
+        action="store_true",
+        help="Test connection to the Kaggle Jupyter proxy server",
+    )
+    exec_p.add_argument(
+        "--gpu-info",
+        action="store_true",
+        help="Query GPU status and device names on the active kernel",
+    )
+    exec_p.add_argument(
+        "--list-files",
+        nargs="?",
+        const="",
+        default=None,
+        help="List files in remote /kaggle/working/ directory",
+    )
+    exec_p.add_argument(
+        "--upload",
+        type=str,
+        default=None,
+        help="Upload local file to /kaggle/working/",
+    )
+    exec_p.add_argument(
+        "--remote-name",
+        type=str,
+        default=None,
+        help="Destination filename when uploading",
+    )
+    exec_p.add_argument(
+        "--download",
+        type=str,
+        default=None,
+        help="Download file from /kaggle/working/",
+    )
+    exec_p.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="Local destination path for downloaded file",
     )
 
     return parser
@@ -536,6 +698,8 @@ def main(args_list: Optional[List[str]] = None) -> int:
     try:
         if args.subcommand in {"run", "push"}:
             return handle_run(args)
+        elif args.subcommand == "exec":
+            return handle_exec(args)
         elif args.subcommand == "status":
             return handle_status(args)
         elif args.subcommand == "logs":

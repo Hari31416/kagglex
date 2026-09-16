@@ -44,3 +44,4 @@ htmlcov/
 artifacts/
 .kagglerun/
 results/
+outputs/

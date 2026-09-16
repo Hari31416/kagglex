@@ -121,3 +121,22 @@ class DatasetConfig:
             raise FileNotFoundError(
                 f"Dataset directory does not exist: {self.data_dir}"
             )
+
+
+@dataclass
+class InteractiveConfig:
+    """Configuration for Kaggle Jupyter proxy interactive sessions."""
+
+    url: str
+    timeout: int = 120
+    verbose: bool = True
+
+
+def resolve_jupyter_url(explicit_url: Optional[str] = None) -> Optional[str]:
+    """Resolve Kaggle Jupyter URL from parameter or KAGGLE_JUPYTER_URL env var."""
+    import os
+
+    if explicit_url and explicit_url.strip():
+        return explicit_url.strip()
+    env_url = os.environ.get("KAGGLE_JUPYTER_URL", "").strip()
+    return env_url if env_url else None

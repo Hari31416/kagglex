@@ -70,6 +70,35 @@ kagglerun pull my-experiment --output-dir ./results --include-outputs "*.json" "
 kagglerun dataset push --data-dir ./data/embeddings --title "Embeddings Dataset"
 ```
 
+### Interactive REPL on Running Kaggle Notebooks
+
+When a notebook is already open in Kaggle, copy its proxy URL (`Run -> Kaggle Jupyter Server -> Copy URL`) and run commands with sub-second feedback:
+
+```bash
+# Verify connection
+kagglerun exec --url "https://kkb-production.jupyter-proxy.kaggle.net?token=..." --test
+
+# Query remote GPU status
+kagglerun exec --url "https://kkb-production.jupyter-proxy.kaggle.net?token=..." --gpu-info
+
+# Execute inline Python snippets
+kagglerun exec "import torch; print(torch.cuda.device_count())"
+
+# Execute a local Python file remotely
+kagglerun exec --file evaluate.py
+
+# List and transfer files
+kagglerun exec --list-files
+kagglerun exec --upload ./checkpoint.pt
+kagglerun exec --download run_results.json -o ./local_results.json
+```
+
+Alternatively, set the environment variable:
+
+```bash
+export KAGGLE_JUPYTER_URL="https://kkb-production.jupyter-proxy.kaggle.net?token=..."
+```
+
 ## Python SDK Usage
 
 ```python

@@ -1,7 +1,9 @@
 """Unit tests for CLI argument parsing and commands."""
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from kagglerun.cli import create_parser, main
 
@@ -73,3 +75,38 @@ def test_cli_dry_run(
         ]
     )
     assert exit_code == 0
+
+
+def test_cli_parser_exec() -> None:
+    """Test parsing 'exec' subcommand arguments."""
+    parser = create_parser()
+    args = parser.parse_args(
+        [
+            "exec",
+            "print('test')",
+            "--url",
+            "https://proxy.kaggle.net?token=123",
+            "--timeout",
+            "45",
+        ]
+    )
+    assert args.subcommand == "exec"
+    assert args.code == "print('test')"
+    assert args.url == "https://proxy.kaggle.net?token=123"
+    assert args.timeout == 45
+
+
+def test_cli_exec_missing_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test 'exec' exits with error code 1 when no URL is provided or configured."""
+    monkeypatch.delenv("KAGGLE_JUPYTER_URL", raising=False)
+    exit_code = main(["exec", "print(123)"])
+    assert exit_code == 1
+
+
+def test_cli_exec_test_connection() -> None:
+    """Test 'exec --test' command invokes client.test_connection."""
+    with patch(
+        "kagglerun.interactive.JupyterProxyClient.test_connection", return_value=True
+    ):
+        exit_code = main(["exec", "--url", "https://proxy.kaggle.net/proxy", "--test"])
+        assert exit_code == 0
