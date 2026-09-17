@@ -3,6 +3,7 @@
 import fnmatch
 import json
 import logging
+import re
 import shutil
 import sys
 import tempfile
@@ -307,6 +308,40 @@ def _match_pattern(rel_path_str: str, patterns: list[str]) -> bool:
     return False
 
 
+def _glob_to_regex(pat: str) -> str:
+    """Convert a glob pattern to a regex string for Kaggle's server-side filtering."""
+    p = pat.strip()
+    if p.endswith("/**"):
+        p = p[:-3] + "/*"
+    elif p.endswith("/"):
+        p = p + "*"
+    return fnmatch.translate(p)
+
+
+def _build_server_fetch_pattern(
+    include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
+) -> str:
+    """Build a server-side regex pattern for Kaggle's api.kernels_output().
+
+    Args:
+        include_patterns: Optional list of glob patterns to include.
+        exclude_patterns: Optional list of glob patterns to exclude.
+
+    Returns:
+        A compiled-safe regex string.
+    """
+    if include_patterns:
+        sub_regexes = [_glob_to_regex(p) for p in include_patterns if p.strip()]
+        if sub_regexes:
+            if len(sub_regexes) == 1:
+                return sub_regexes[0]
+            return "|".join(f"({r})" for r in sub_regexes)
+
+    # Default fetch pattern: fetch outputs/ while skipping large .pt weights and .pyc bytecode server-side
+    return r"(?s:outputs/(?!.*(\.pt|\.pyc)$).*)\Z"
+
+
 def pull_kernel_output(
     kernel_id: str,
     destination_dir: Path,
@@ -329,33 +364,24 @@ def pull_kernel_output(
 
     effective_excludes = list(exclude_patterns or DEFAULT_OUTPUT_EXCLUDES)
     api = get_kaggle_api()
-
-    # Determine server-side fetch patterns
-    patterns_to_fetch: list[str | None] = []
-    if include_patterns:
-        for pat in include_patterns:
-            if pat.endswith("/**"):
-                patterns_to_fetch.append(pat[:-3] + "/*")
-            else:
-                patterns_to_fetch.append(pat)
-    else:
-        patterns_to_fetch = ["outputs/*"]
+    server_pattern = _build_server_fetch_pattern(
+        include_patterns=include_patterns, exclude_patterns=exclude_patterns
+    )
 
     saved_files: list[Path] = []
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
-        for s_pat in patterns_to_fetch:
-            try:
-                api.kernels_output(
-                    kernel_id,
-                    path=str(tmp_path),
-                    file_pattern=s_pat,
-                    force=True,
-                    quiet=True,
-                )
-            except Exception as e:
-                logger.debug("Server fetch pattern '%s' note: %s", s_pat, e)
+        try:
+            api.kernels_output(
+                kernel_id,
+                path=str(tmp_path),
+                file_pattern=server_pattern,
+                force=True,
+                quiet=True,
+            )
+        except Exception as e:
+            logger.debug("Server fetch pattern '%s' note: %s", server_pattern, e)
 
         for file_path in tmp_path.rglob("*"):
             if not file_path.is_file():

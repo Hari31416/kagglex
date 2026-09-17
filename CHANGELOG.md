@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Convert shell glob patterns to regular expressions for Kaggle API server-side filtering, resolving silent regex syntax errors when pulling wildcard patterns (e.g. `*.json`).
+- Prevent unneeded network downloads of large `.pt` checkpoints and `.pyc` files during default output pulls via server-side negative lookaheads.
 - Raise an explicit `ValueError` when `pkg_payload.zip` or `data_payload.zip` exceeds 5 MB instead of silently dropping the payload.
 
 ### Changed
