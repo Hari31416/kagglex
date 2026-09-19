@@ -90,7 +90,6 @@ class Job:
                 "duration_sec": info.get("duration_sec"),
                 "error_message": info.get("failure_message"),
             },
-            repo_root=self.repo_root,
         )
         return info
 
@@ -102,9 +101,7 @@ class Job:
         """Cancel this job on Kaggle."""
         ok = cancel_kernel(self.kernel_id)
         if ok:
-            update_run(
-                self.kernel_id, {"status": "cancelled"}, repo_root=self.repo_root
-            )
+            update_run(self.kernel_id, {"status": "cancelled"})
         return ok
 
     def pull_outputs(
@@ -123,7 +120,7 @@ class Job:
             include_patterns=inc,
             exclude_patterns=exc,
         )
-        update_run(self.kernel_id, {"output_dir": str(dest)}, repo_root=self.repo_root)
+        update_run(self.kernel_id, {"output_dir": str(dest)})
         return saved
 
 
@@ -269,7 +266,7 @@ class KaggleRunner:
             repo_root=self.repo_root,
         )
 
-        # Record in local history
+        # Record in global history
         rec = RunRecord(
             slug=config.slug or config.title,
             kernel_id=actual_kernel_id,
@@ -279,8 +276,9 @@ class KaggleRunner:
             submitted_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
             status="queued",
             url=kernel_url,
+            project_path=str(self.repo_root),
         )
-        record_run(rec, repo_root=self.repo_root)
+        record_run(rec)
 
         if not wait:
             return job
@@ -295,11 +293,11 @@ class KaggleRunner:
         return job
 
     def list_runs(self, limit: int = 20) -> list[RunRecord]:
-        """List recent runs from local history."""
-        return list_runs(limit=limit, repo_root=self.repo_root)
+        """List recent runs from global history."""
+        return list_runs(limit=limit)
 
     def cancel(self, kernel_id_or_slug: str) -> bool:
         """Cancel a run by kernel id or slug."""
-        rec = get_run(kernel_id_or_slug, repo_root=self.repo_root)
+        rec = get_run(kernel_id_or_slug)
         kernel_id = rec.kernel_id if rec else kernel_id_or_slug
         return cancel_kernel(kernel_id)

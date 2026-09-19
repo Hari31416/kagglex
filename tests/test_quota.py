@@ -29,7 +29,7 @@ def test_parse_timestamp() -> None:
 
 def test_get_quota_usage_empty(tmp_path: Path) -> None:
     """Verify get_quota_usage with no runs."""
-    usage = get_quota_usage(repo_root=tmp_path)
+    usage = get_quota_usage(history_path=tmp_path)
     assert usage["gpu"]["used_hours"] == 0.0
     assert usage["gpu"]["remaining_hours"] == 30.0
     assert usage["gpu"]["used_pct"] == 0.0
@@ -55,7 +55,7 @@ def test_get_quota_usage_aggregated(tmp_path: Path) -> None:
         status="complete",
         duration_sec=7200.0,
     )
-    record_run(r1, repo_root=tmp_path)
+    record_run(r1, history_path=tmp_path)
 
     # Recent TPU run: 1.5 hours (5400 sec)
     r2 = RunRecord(
@@ -68,7 +68,7 @@ def test_get_quota_usage_aggregated(tmp_path: Path) -> None:
         status="complete",
         duration_sec=5400.0,
     )
-    record_run(r2, repo_root=tmp_path)
+    record_run(r2, history_path=tmp_path)
 
     # Old run outside 7-day window: 10 hours
     r3 = RunRecord(
@@ -83,9 +83,9 @@ def test_get_quota_usage_aggregated(tmp_path: Path) -> None:
         status="complete",
         duration_sec=36000.0,
     )
-    record_run(r3, repo_root=tmp_path)
+    record_run(r3, history_path=tmp_path)
 
-    usage = get_quota_usage(repo_root=tmp_path, window_days=7, current_time=now)
+    usage = get_quota_usage(history_path=tmp_path, window_days=7, current_time=now)
     assert usage["gpu"]["used_hours"] == 2.0
     assert usage["gpu"]["remaining_hours"] == 28.0
     assert usage["gpu"]["used_pct"] == round((2.0 / 30.0) * 100.0, 1)
@@ -102,7 +102,7 @@ def test_handle_quota_cli(tmp_path: Path, capsys) -> None:
     parser = create_parser()
     args = parser.parse_args(["quota", "--days", "7", "--gpu-limit", "30.0"])
 
-    with patch("kagglex.cli.find_repo_root", return_value=tmp_path):
+    with patch("pathlib.Path.home", return_value=tmp_path):
         ret = handle_quota(args)
         assert ret == 0
 
@@ -126,35 +126,37 @@ def test_handle_run_quota_warning(tmp_path: Path) -> None:
         status="complete",
         duration_sec=29.0 * 3600.0,
     )
-    record_run(r1, repo_root=tmp_path)
 
-    (tmp_path / "train.py").write_text("print(1)\n")
+    with patch("pathlib.Path.home", return_value=tmp_path):
+        record_run(r1)
 
-    parser = create_parser()
-    args = parser.parse_args(
-        [
-            "run",
-            "--dir",
-            str(tmp_path),
-            "--file",
-            str(tmp_path / "train.py"),
-            "--gpu",
-            "t4-2x",
-            "--dry-run",
-        ]
-    )
+        (tmp_path / "train.py").write_text("print(1)\n")
 
-    with (
-        patch("kagglex.cli.logger.warning") as mock_warn,
-        patch("kagglex.api.KaggleRunner.stage", return_value=tmp_path / "staged"),
-        patch("kagglex.cli.check_kaggle_health", return_value=(True, "testuser")),
-    ):
-        ret = handle_run(args)
-        assert ret == 0
-        # Check that warning was logged
-        warning_calls = [
-            c[0][0]
-            for c in mock_warn.call_args_list
-            if "Estimated GPU quota" in c[0][0]
-        ]
-        assert len(warning_calls) > 0
+        parser = create_parser()
+        args = parser.parse_args(
+            [
+                "run",
+                "--dir",
+                str(tmp_path),
+                "--file",
+                str(tmp_path / "train.py"),
+                "--gpu",
+                "t4-2x",
+                "--dry-run",
+            ]
+        )
+
+        with (
+            patch("kagglex.cli.logger.warning") as mock_warn,
+            patch("kagglex.api.KaggleRunner.stage", return_value=tmp_path / "staged"),
+            patch("kagglex.cli.check_kaggle_health", return_value=(True, "testuser")),
+        ):
+            ret = handle_run(args)
+            assert ret == 0
+            # Check that warning was logged
+            warning_calls = [
+                c[0][0]
+                for c in mock_warn.call_args_list
+                if "Estimated GPU quota" in c[0][0]
+            ]
+            assert len(warning_calls) > 0

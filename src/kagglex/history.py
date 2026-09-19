@@ -24,16 +24,21 @@ class RunRecord:
     output_dir: str | None = None
     url: str | None = None
     error_message: str | None = None
+    project_path: str | None = None
 
 
-def get_history_file(repo_root: Path | None = None) -> Path:
-    """Get path to local or user-level run history file."""
-    if repo_root:
-        hist_dir = repo_root / ".kagglex"
-        legacy_file = repo_root / ".kagglerun" / "runs.json"
-    else:
-        hist_dir = Path.home() / ".kagglex"
-        legacy_file = Path.home() / ".kagglerun" / "runs.json"
+def get_history_file(history_path: Path | None = None) -> Path:
+    """Get path to global user-level run history file (~/.kagglex/runs.json)."""
+    if history_path:
+        if history_path.is_dir():
+            target_file = history_path / "runs.json"
+        else:
+            target_file = history_path
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        return target_file
+
+    hist_dir = Path.home() / ".kagglex"
+    legacy_file = Path.home() / ".kagglerun" / "runs.json"
     hist_dir.mkdir(parents=True, exist_ok=True)
     target_file = hist_dir / "runs.json"
     if not target_file.exists() and legacy_file.exists():
@@ -43,9 +48,9 @@ def get_history_file(repo_root: Path | None = None) -> Path:
     return target_file
 
 
-def load_all_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
+def load_all_records(history_path: Path | None = None) -> list[dict[str, Any]]:
     """Read all recorded runs from history file."""
-    hist_file = get_history_file(repo_root)
+    hist_file = get_history_file(history_path)
     if not hist_file.exists():
         return []
 
@@ -60,10 +65,10 @@ def load_all_records(repo_root: Path | None = None) -> list[dict[str, Any]]:
 
 
 def save_all_records(
-    records: list[dict[str, Any]], repo_root: Path | None = None
+    records: list[dict[str, Any]], history_path: Path | None = None
 ) -> None:
     """Write all records to history file."""
-    hist_file = get_history_file(repo_root)
+    hist_file = get_history_file(history_path)
     try:
         with open(hist_file, "w", encoding="utf-8") as f:
             json.dump(records, f, indent=2)
@@ -71,9 +76,9 @@ def save_all_records(
         logger.warning("Could not write history file %s: %s", hist_file, e)
 
 
-def record_run(record: RunRecord, repo_root: Path | None = None) -> None:
-    """Append or update a run in local history."""
-    records = load_all_records(repo_root)
+def record_run(record: RunRecord, history_path: Path | None = None) -> None:
+    """Append or update a run in global history."""
+    records = load_all_records(history_path)
     record_dict = asdict(record)
 
     # Update if already exists
@@ -87,19 +92,19 @@ def record_run(record: RunRecord, repo_root: Path | None = None) -> None:
     if not updated:
         records.insert(0, record_dict)
 
-    save_all_records(records, repo_root)
+    save_all_records(records, history_path)
     logger.debug(
-        "Recorded run '%s' in %s", record.kernel_id, get_history_file(repo_root)
+        "Recorded run '%s' in %s", record.kernel_id, get_history_file(history_path)
     )
 
 
 def update_run(
     kernel_id_or_slug: str,
     updates: dict[str, Any],
-    repo_root: Path | None = None,
+    history_path: Path | None = None,
 ) -> RunRecord | None:
     """Update attributes of an existing run record."""
-    records = load_all_records(repo_root)
+    records = load_all_records(history_path)
     target_idx = -1
 
     for i, r in enumerate(records):
@@ -115,14 +120,16 @@ def update_run(
         return None
 
     records[target_idx].update(updates)
-    save_all_records(records, repo_root)
+    save_all_records(records, history_path)
     rec_dict = records[target_idx]
     return RunRecord(**rec_dict)
 
 
-def get_run(kernel_id_or_slug: str, repo_root: Path | None = None) -> RunRecord | None:
+def get_run(
+    kernel_id_or_slug: str, history_path: Path | None = None
+) -> RunRecord | None:
     """Find a run record by kernel id or slug."""
-    records = load_all_records(repo_root)
+    records = load_all_records(history_path)
     for r in records:
         if (
             r.get("kernel_id") == kernel_id_or_slug
@@ -133,9 +140,9 @@ def get_run(kernel_id_or_slug: str, repo_root: Path | None = None) -> RunRecord 
     return None
 
 
-def list_runs(limit: int = 20, repo_root: Path | None = None) -> list[RunRecord]:
+def list_runs(limit: int = 20, history_path: Path | None = None) -> list[RunRecord]:
     """List recent run records ordered by submission time."""
-    records = load_all_records(repo_root)
+    records = load_all_records(history_path)
     results: list[RunRecord] = []
     for r in records[:limit]:
         try:
@@ -170,7 +177,7 @@ def parse_timestamp(timestamp_str: str) -> float | None:
 
 
 def get_quota_usage(
-    repo_root: Path | None = None,
+    history_path: Path | None = None,
     window_days: int = 7,
     gpu_limit_hours: float = 30.0,
     tpu_limit_hours: float = 20.0,
@@ -179,7 +186,7 @@ def get_quota_usage(
     """Calculate GPU and TPU accelerator quota usage across a rolling time window.
 
     Args:
-        repo_root: Optional repository root to load history from.
+        history_path: Optional path to history file/directory.
         window_days: Number of days in rolling window (default: 7).
         gpu_limit_hours: Weekly GPU quota limit in hours (default: 30.0).
         tpu_limit_hours: Weekly TPU quota limit in hours (default: 20.0).
@@ -193,7 +200,7 @@ def get_quota_usage(
     now = current_time if current_time is not None else time.time()
     cutoff_epoch = now - (window_days * 86400.0)
 
-    records = load_all_records(repo_root)
+    records = load_all_records(history_path)
 
     gpu_seconds = 0.0
     tpu_seconds = 0.0

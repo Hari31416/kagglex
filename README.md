@@ -2,6 +2,12 @@
 
 Execute local Python code, modules, and experiments seamlessly on Kaggle GPUs and TPUs.
 
+[![PyPI version](https://img.shields.io/pypi/v/kagglex)](https://pypi.org/project/kagglex/)
+[![Downloads](https://pepy.tech/badge/kagglex)](https://pepy.tech/projects/kagglex)
+[![Python](https://img.shields.io/pypi/pyversions/kagglex)](https://pypi.org/project/kagglex/)
+[![License](https://img.shields.io/pypi/l/kagglex)](https://github.com/Hari31416/kagglex/blob/main/LICENSE)
+[![CI](https://github.com/Hari31416/kagglex/actions/workflows/ci.yml/badge.svg)](https://github.com/Hari31416/kagglex/actions/workflows/ci.yml)
+
 ## Overview
 
 `kagglex` enables machine learning practitioners and researchers to transparently package and dispatch local Python code, standalone scripts, or complete packages to Kaggle's cloud GPU and TPU environments without tedious manual uploading or notebook maintenance.

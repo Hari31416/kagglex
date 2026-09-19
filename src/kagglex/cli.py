@@ -167,7 +167,7 @@ def handle_run(args: argparse.Namespace) -> int:
 
     # Check estimated quota warning
     try:
-        usage = get_quota_usage(repo_root=project_dir, window_days=7)
+        usage = get_quota_usage(window_days=7)
         if config.gpu_type in {"t4-2x", "p100"}:
             gpu_info = usage["gpu"]
             if gpu_info["used_pct"] >= 90.0 or gpu_info["remaining_hours"] < 2.0:
@@ -306,8 +306,7 @@ def handle_pull(args: argparse.Namespace) -> int:
 
 def handle_list(args: argparse.Namespace) -> int:
     """Handle 'list' subcommand."""
-    repo_root = find_repo_root()
-    runs = list_runs(limit=args.limit, repo_root=repo_root)
+    runs = list_runs(limit=args.limit)
 
     if not runs:
         logger.info("No recorded runs found.")
@@ -352,7 +351,6 @@ def handle_quota(args: argparse.Namespace) -> int:
     )
 
     usage = get_quota_usage(
-        repo_root=repo_root,
         window_days=args.days,
         gpu_limit_hours=gpu_limit,
         tpu_limit_hours=tpu_limit,
