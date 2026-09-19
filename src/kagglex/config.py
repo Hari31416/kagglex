@@ -4,6 +4,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -136,11 +137,97 @@ class InteractiveConfig:
     verbose: bool = True
 
 
-def resolve_jupyter_url(explicit_url: str | None = None) -> str | None:
-    """Resolve Kaggle Jupyter URL from parameter or KAGGLE_JUPYTER_URL env var."""
+def read_toml_file(path: Path) -> dict[str, Any]:
+    """Parse a TOML file safely using standard library tomllib or tomli."""
+    if not path.is_file():
+        return {}
+    try:
+        import tomllib
+    except ImportError:
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            logger.debug("Neither tomllib nor tomli is available to parse %s", path)
+            return {}
+
+    try:
+        with open(path, "rb") as f:
+            return tomllib.load(f)
+    except Exception as e:
+        logger.warning("Failed to parse TOML file %s: %s", path, e)
+        return {}
+
+
+def load_project_config(start_dir: Path | None = None) -> dict[str, Any]:
+    """Load configuration hierarchy from user global config, pyproject.toml, and kagglex.toml.
+
+    Search hierarchy (later overrides earlier):
+    1. ~/.config/kagglex/config.toml or ~/.kagglex/config.toml
+    2. pyproject.toml [tool.kagglex] in project / repo directory
+    3. kagglex.toml in project / repo directory
+    """
+    merged: dict[str, Any] = {}
+
+    # 1. User global configuration
+    user_configs = [
+        Path.home() / ".config" / "kagglex" / "config.toml",
+        Path.home() / ".kagglex" / "config.toml",
+    ]
+    for u_cfg in user_configs:
+        if u_cfg.is_file():
+            data = read_toml_file(u_cfg)
+            if data:
+                merged.update(data)
+            break
+
+    # 2. Project-level configuration
+    proj_root = (start_dir or Path.cwd()).resolve()
+
+    # Look in pyproject.toml
+    pyproject_path = proj_root / "pyproject.toml"
+    if not pyproject_path.is_file():
+        for parent in proj_root.parents:
+            if (parent / "pyproject.toml").is_file():
+                pyproject_path = parent / "pyproject.toml"
+                break
+
+    if pyproject_path.is_file():
+        pyproj_data = read_toml_file(pyproject_path)
+        tool_kagglex = pyproj_data.get("tool", {}).get("kagglex")
+        if isinstance(tool_kagglex, dict):
+            merged.update(tool_kagglex)
+
+    # Look in kagglex.toml
+    kagglex_path = proj_root / "kagglex.toml"
+    if not kagglex_path.is_file():
+        for parent in proj_root.parents:
+            if (parent / "kagglex.toml").is_file():
+                kagglex_path = parent / "kagglex.toml"
+                break
+
+    if kagglex_path.is_file():
+        kagglex_data = read_toml_file(kagglex_path)
+        if kagglex_data:
+            merged.update(kagglex_data)
+
+    return merged
+
+
+def resolve_jupyter_url(
+    explicit_url: str | None = None, start_dir: Path | None = None
+) -> str | None:
+    """Resolve Kaggle Jupyter URL from parameter, KAGGLE_JUPYTER_URL env var, or config."""
     import os
 
     if explicit_url and explicit_url.strip():
         return explicit_url.strip()
     env_url = os.environ.get("KAGGLE_JUPYTER_URL", "").strip()
-    return env_url if env_url else None
+    if env_url:
+        return env_url
+
+    cfg = load_project_config(start_dir)
+    cfg_url = cfg.get("url") or cfg.get("jupyter_url")
+    if cfg_url and isinstance(cfg_url, str) and cfg_url.strip():
+        return cfg_url.strip()
+
+    return None

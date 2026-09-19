@@ -16,7 +16,7 @@ from kagglex.client import (
     pull_kernel_output,
     stream_kernel_logs,
 )
-from kagglex.config import DatasetConfig, RunConfig
+from kagglex.config import DatasetConfig, RunConfig, load_project_config
 from kagglex.dataset import create_dataset_metadata, push_dataset
 from kagglex.history import list_runs, update_run
 from kagglex.workspace import find_repo_root
@@ -61,48 +61,108 @@ def parse_env_args(env_items: list[str] | None, env_file: str | None) -> dict[st
 
 def handle_run(args: argparse.Namespace) -> int:
     """Handle the 'run' command: Stage, dispatch, monitor, and retrieve outputs."""
-    env_vars = parse_env_args(args.env, args.env_file)
-    project_dir = Path(args.dir).resolve() if args.dir else None
-    target_file = Path(args.file).resolve() if args.file else None
+    project_dir = Path(args.dir).resolve() if args.dir else find_repo_root()
+    proj_cfg = load_project_config(project_dir)
 
-    # Determine command
-    cmd = args.command
+    # 1. Environment variables
+    file_env = proj_cfg.get("env", {})
+    env_vars = parse_env_args(args.env, args.env_file or proj_cfg.get("env_file"))
+    if file_env and isinstance(file_env, dict):
+        merged_env = {str(k): str(v) for k, v in file_env.items()}
+        merged_env.update(env_vars)
+        env_vars = merged_env
+
+    # 2. Target file & command
+    target_file = (
+        Path(args.file).resolve()
+        if args.file
+        else (
+            (project_dir / proj_cfg["file"]).resolve() if "file" in proj_cfg else None
+        )
+    )
+    cmd = args.command or proj_cfg.get("command")
     if not cmd and target_file:
         cmd = f"python {target_file.name}"
     elif not cmd:
-        logger.error("Must specify --command or --file")
+        logger.error(
+            "Must specify --command or --file (or configure in kagglex.toml / pyproject.toml)"
+        )
         return 1
 
-    # Determine title
-    title = args.title
+    # 3. Title & Slug
+    title = args.title or proj_cfg.get("title")
     if not title:
         if target_file:
             title = f"Run {target_file.stem}"
         else:
             title = "Kaggle Experiment Run"
 
+    slug = args.slug or proj_cfg.get("slug")
+
+    # 4. Accelerator / GPU
+    gpu_type = args.gpu
+    if gpu_type == "t4-2x" and ("gpu" in proj_cfg or "gpu_type" in proj_cfg):
+        gpu_type = str(proj_cfg.get("gpu") or proj_cfg.get("gpu_type"))
+
+    # 5. Flags
+    multi_gpu = args.multi_gpu or bool(proj_cfg.get("multi_gpu", False))
+    auto_dataset = args.auto_dataset or bool(proj_cfg.get("auto_dataset", False))
+    auto_dataset_slug = args.auto_dataset_slug or proj_cfg.get("auto_dataset_slug")
+    no_internet = (
+        args.no_internet
+        or bool(proj_cfg.get("no_internet", False))
+        or (proj_cfg.get("enable_internet") is False)
+    )
+
+    # 6. Collections
+    datasets = (
+        args.datasets or proj_cfg.get("datasets") or proj_cfg.get("dataset_slugs") or []
+    )
+    include_data = args.include_data or proj_cfg.get("include_data") or []
+    extra_deps = (
+        args.extra_deps
+        or proj_cfg.get("extra_deps")
+        or proj_cfg.get("extra_pip_deps")
+        or []
+    )
+    kaggle_secrets = args.kaggle_secrets or proj_cfg.get("kaggle_secrets") or []
+    parent_kernels = args.parent_kernels or proj_cfg.get("parent_kernels") or []
+    include_outputs = args.include_outputs or proj_cfg.get("include_outputs") or []
+    exclude_outputs = args.exclude_outputs or proj_cfg.get("exclude_outputs") or []
+
+    # 7. Outputs, records & poll interval
+    output_dir_val = args.output_dir or proj_cfg.get("output_dir")
+    output_dir = Path(output_dir_val).resolve() if output_dir_val else None
+
+    record_file_val = args.record_file or proj_cfg.get("record_file")
+    record_file = Path(record_file_val).resolve() if record_file_val else None
+
+    poll_interval = args.poll_interval
+    if poll_interval == 20 and "poll_interval" in proj_cfg:
+        poll_interval = int(proj_cfg["poll_interval"])
+
     config = RunConfig(
         command=cmd,
         title=title,
-        slug=args.slug,
+        slug=slug,
         project_dir=project_dir,
         target_file=target_file,
-        gpu_type=args.gpu,
-        multi_gpu=args.multi_gpu,
-        enable_internet=not args.no_internet,
-        dataset_slugs=args.datasets or [],
-        include_data=args.include_data or [],
-        extra_pip_deps=args.extra_deps or [],
+        gpu_type=gpu_type,
+        multi_gpu=multi_gpu,
+        enable_internet=not no_internet,
+        dataset_slugs=datasets,
+        include_data=include_data,
+        extra_pip_deps=extra_deps,
         env_vars=env_vars,
-        kaggle_secrets=args.kaggle_secrets or [],
-        parent_kernels=args.parent_kernels or [],
-        output_dir=Path(args.output_dir) if args.output_dir else None,
-        record_file=Path(args.record_file) if args.record_file else None,
-        include_outputs=args.include_outputs or [],
-        exclude_outputs=args.exclude_outputs or [],
-        auto_dataset=args.auto_dataset,
-        auto_dataset_slug=args.auto_dataset_slug,
-        poll_interval=args.poll_interval,
+        kaggle_secrets=kaggle_secrets,
+        parent_kernels=parent_kernels,
+        output_dir=output_dir,
+        record_file=record_file,
+        include_outputs=include_outputs,
+        exclude_outputs=exclude_outputs,
+        auto_dataset=auto_dataset,
+        auto_dataset_slug=auto_dataset_slug,
+        poll_interval=poll_interval,
     )
 
     runner = KaggleRunner(repo_root=project_dir)
@@ -272,6 +332,7 @@ def handle_dataset_push(args: argparse.Namespace) -> int:
 
     url = push_dataset(config, version_notes=args.notes)
     logger.info("Dataset available at: %s", url)
+    return 0
 
 
 def handle_exec(args: argparse.Namespace) -> int:
@@ -279,7 +340,7 @@ def handle_exec(args: argparse.Namespace) -> int:
     from kagglex.config import resolve_jupyter_url
     from kagglex.interactive import JupyterProxyClient
 
-    url = resolve_jupyter_url(args.url)
+    url = resolve_jupyter_url(args.url, start_dir=find_repo_root())
     if not url:
         logger.error(
             "Kaggle Jupyter URL not provided. Please supply --url <URL> or set the "
