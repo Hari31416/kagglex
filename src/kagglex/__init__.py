@@ -5,7 +5,7 @@ from kagglex.config import DatasetConfig, InteractiveConfig, RunConfig
 from kagglex.history import RunRecord
 from kagglex.interactive import JupyterProxyClient
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "Job",
     "JupyterProxyClient",
