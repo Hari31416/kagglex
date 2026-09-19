@@ -34,6 +34,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/Hari31416/kagglex"
+Documentation = "https://hari31416.github.io/kagglex/"
 Repository = "https://github.com/Hari31416/kagglex"
 Issues = "https://github.com/Hari31416/kagglex/issues"
 
@@ -45,6 +46,11 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
     "pre-commit>=4.0.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "pymdown-extensions>=10.7.0",
 ]
 
 

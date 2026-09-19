@@ -41,6 +41,16 @@ test-cov:  ## Run tests with coverage report
 	uv run pytest --cov=kagglex --cov-report=term-missing
 
 # ---------------------------------------------------------------------------
+# Documentation
+# ---------------------------------------------------------------------------
+
+docs-serve:  ## Run local MkDocs development server
+	uv run --group docs mkdocs serve
+
+docs-build:  ## Build documentation site into site/
+	uv run --group docs mkdocs build --clean
+
+# ---------------------------------------------------------------------------
 # Packaging
 # ---------------------------------------------------------------------------
 
