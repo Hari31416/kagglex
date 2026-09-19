@@ -158,27 +158,59 @@ def read_toml_file(path: Path) -> dict[str, Any]:
         return {}
 
 
-def load_project_config(start_dir: Path | None = None) -> dict[str, Any]:
+def _merge_configs(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Recursively merge two configuration dictionaries."""
+    merged = dict(base)
+    for k, v in override.items():
+        if k in merged and isinstance(merged[k], dict) and isinstance(v, dict):
+            merged[k] = _merge_configs(merged[k], v)
+        else:
+            merged[k] = v
+    return merged
+
+
+def get_global_config_file(custom_path: Path | None = None) -> Path | None:
+    """Find the path to user global config file if it exists."""
+    if custom_path and custom_path.is_file():
+        return custom_path
+
+    candidates = [
+        Path.home() / ".kagglex" / "config.toml",
+        Path.home() / ".kagglex" / "kagglex.toml",
+        Path.home() / ".config" / "kagglex" / "config.toml",
+    ]
+    for p in candidates:
+        if p.is_file():
+            return p
+    return None
+
+
+def load_project_config(
+    start_dir: Path | None = None,
+    global_config_path: Path | None = None,
+) -> dict[str, Any]:
     """Load configuration hierarchy from user global config, pyproject.toml, and kagglex.toml.
 
     Search hierarchy (later overrides earlier):
-    1. ~/.config/kagglex/config.toml or ~/.kagglex/config.toml
+    1. User global config (~/.kagglex/config.toml, ~/.kagglex/kagglex.toml, ~/.config/kagglex/config.toml)
     2. pyproject.toml [tool.kagglex] in project / repo directory
     3. kagglex.toml in project / repo directory
     """
     merged: dict[str, Any] = {}
 
     # 1. User global configuration
-    user_configs = [
-        Path.home() / ".config" / "kagglex" / "config.toml",
-        Path.home() / ".kagglex" / "config.toml",
-    ]
-    for u_cfg in user_configs:
-        if u_cfg.is_file():
-            data = read_toml_file(u_cfg)
-            if data:
-                merged.update(data)
-            break
+    g_file = (
+        global_config_path
+        if (global_config_path and global_config_path.is_file())
+        else get_global_config_file()
+    )
+    if g_file and g_file.is_file():
+        g_data = read_toml_file(g_file)
+        tool_kagglex = g_data.get("tool", {}).get("kagglex")
+        if isinstance(tool_kagglex, dict):
+            merged = _merge_configs(merged, tool_kagglex)
+        elif g_data:
+            merged = _merge_configs(merged, g_data)
 
     # 2. Project-level configuration
     proj_root = (start_dir or Path.cwd()).resolve()
@@ -195,7 +227,7 @@ def load_project_config(start_dir: Path | None = None) -> dict[str, Any]:
         pyproj_data = read_toml_file(pyproject_path)
         tool_kagglex = pyproj_data.get("tool", {}).get("kagglex")
         if isinstance(tool_kagglex, dict):
-            merged.update(tool_kagglex)
+            merged = _merge_configs(merged, tool_kagglex)
 
     # Look in kagglex.toml
     kagglex_path = proj_root / "kagglex.toml"
@@ -207,14 +239,19 @@ def load_project_config(start_dir: Path | None = None) -> dict[str, Any]:
 
     if kagglex_path.is_file():
         kagglex_data = read_toml_file(kagglex_path)
-        if kagglex_data:
-            merged.update(kagglex_data)
+        tool_data = kagglex_data.get("tool", {}).get("kagglex")
+        if isinstance(tool_data, dict):
+            merged = _merge_configs(merged, tool_data)
+        elif kagglex_data:
+            merged = _merge_configs(merged, kagglex_data)
 
     return merged
 
 
 def resolve_jupyter_url(
-    explicit_url: str | None = None, start_dir: Path | None = None
+    explicit_url: str | None = None,
+    start_dir: Path | None = None,
+    global_config_path: Path | None = None,
 ) -> str | None:
     """Resolve Kaggle Jupyter URL from parameter, KAGGLE_JUPYTER_URL env var, or config."""
     import os
@@ -225,7 +262,9 @@ def resolve_jupyter_url(
     if env_url:
         return env_url
 
-    cfg = load_project_config(start_dir)
+    cfg = load_project_config(
+        start_dir=start_dir, global_config_path=global_config_path
+    )
     cfg_url = cfg.get("url") or cfg.get("jupyter_url")
     if cfg_url and isinstance(cfg_url, str) and cfg_url.strip():
         return cfg_url.strip()

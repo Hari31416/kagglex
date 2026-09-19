@@ -95,14 +95,19 @@ Track your rolling 7-day accelerator consumption against Kaggle's weekly quotas 
 kagglex quota --days 7
 ```
 
-Because Kaggle's public API does not expose an endpoint to query remaining weekly quota balances, `kagglex` computes usage locally from run records in `.kagglex/runs.json` over a configurable rolling window (default: 7 days). Limit thresholds can be configured via `--gpu-limit` / `--tpu-limit` or in `pyproject.toml`.
+Because Kaggle's public API does not expose an endpoint to query remaining weekly quota balances, `kagglex` computes usage locally from run records in `~/.kagglex/runs.json` over a configurable rolling window (default: 7 days). Limit thresholds can be configured via `--gpu-limit` / `--tpu-limit` or in configuration files.
 
 ### Declarative Configuration
 
-Define project defaults in `pyproject.toml` or `kagglex.toml` to avoid repetitive CLI arguments:
+`kagglex` supports a multi-tier configuration hierarchy (later sources override earlier ones):
+
+- **User Global**: `~/.kagglex/config.toml` (or `~/.kagglex/kagglex.toml`)
+- **Project Settings**: `pyproject.toml` (`[tool.kagglex]`) or `kagglex.toml`
+- **CLI Arguments**: Command line flags override all configuration files
+
+Example project configuration in `pyproject.toml`:
 
 ```toml
-# pyproject.toml
 [tool.kagglex]
 gpu = "t4-2x"
 multi_gpu = true
@@ -112,6 +117,17 @@ include_outputs = ["*.json", "checkpoints/*"]
 
 [tool.kagglex.env]
 WANDB_PROJECT = "my-experiment"
+```
+
+Or global defaults in `~/.kagglex/config.toml`:
+
+```toml
+gpu = "p100"
+quota_days = 7
+gpu_weekly_limit_hours = 30.0
+
+[env]
+WANDB_ENTITY = "my-team"
 ```
 
 Then simply run:

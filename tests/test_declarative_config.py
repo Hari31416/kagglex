@@ -102,6 +102,72 @@ MODE = "eval"
         assert config.env_vars == {"MODE": "eval"}
 
 
+def test_load_global_config_default(tmp_path: Path) -> None:
+    """Verify load_project_config picks up global ~/.kagglex/config.toml when no project config exists."""
+    global_dir = tmp_path / ".kagglex"
+    global_dir.mkdir(parents=True)
+    global_cfg = global_dir / "config.toml"
+    global_cfg.write_text(
+        'gpu = "p100"\nmulti_gpu = true\nkaggle_secrets = ["GLOBAL_SECRET"]\n',
+        encoding="utf-8",
+    )
+
+    empty_proj = tmp_path / "empty_repo"
+    empty_proj.mkdir()
+
+    with patch("pathlib.Path.home", return_value=tmp_path):
+        cfg = load_project_config(empty_proj)
+        assert cfg.get("gpu") == "p100"
+        assert cfg.get("multi_gpu") is True
+        assert cfg.get("kaggle_secrets") == ["GLOBAL_SECRET"]
+
+
+def test_project_config_overrides_global_config(tmp_path: Path) -> None:
+    """Verify project pyproject.toml overrides global config and merges env dictionaries."""
+    global_dir = tmp_path / ".kagglex"
+    global_dir.mkdir(parents=True)
+    global_cfg = global_dir / "config.toml"
+    global_cfg.write_text(
+        """
+gpu = "p100"
+kaggle_secrets = ["GLOBAL_SECRET"]
+
+[env]
+SHARED = "global_val"
+GLOBAL_ONLY = "foo"
+""",
+        encoding="utf-8",
+    )
+
+    proj_dir = tmp_path / "my_project"
+    proj_dir.mkdir()
+    pyproject = proj_dir / "pyproject.toml"
+    pyproject.write_text(
+        """
+[tool.kagglex]
+gpu = "t4-2x"
+
+[tool.kagglex.env]
+SHARED = "proj_val"
+PROJ_ONLY = "bar"
+""",
+        encoding="utf-8",
+    )
+
+    with patch("pathlib.Path.home", return_value=tmp_path):
+        cfg = load_project_config(proj_dir)
+        # Project overrides global
+        assert cfg.get("gpu") == "t4-2x"
+        # Global non-overridden attributes remain
+        assert cfg.get("kaggle_secrets") == ["GLOBAL_SECRET"]
+        # Env dictionaries merge with project precedence
+        assert cfg.get("env") == {
+            "SHARED": "proj_val",
+            "GLOBAL_ONLY": "foo",
+            "PROJ_ONLY": "bar",
+        }
+
+
 def test_cli_handle_run_cli_overrides_config(tmp_path: Path) -> None:
     """Verify explicit CLI arguments take precedence over config files."""
     proj_dir = tmp_path / "app"
