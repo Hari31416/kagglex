@@ -59,6 +59,8 @@ kagglex status my-experiment
 kagglex cancel my-experiment
 ```
 
+Note: Kaggle's public API does not support programmatic session cancellation for running kernels. `kagglex cancel` marks the local run record as cancelled and provides the direct Kaggle URL to stop the session in the web interface.
+
 ### Pull Downloaded Outputs
 
 ```bash
@@ -86,6 +88,8 @@ Track your rolling 7-day accelerator consumption against Kaggle's weekly quotas 
 ```bash
 kagglex quota --days 7
 ```
+
+Because Kaggle's public API does not expose an endpoint to query remaining weekly quota balances, `kagglex` computes usage locally from run records in `.kagglex/runs.json` over a configurable rolling window (default: 7 days). Limit thresholds can be configured via `--gpu-limit` / `--tpu-limit` or in `pyproject.toml`.
 
 ### Declarative Configuration
 
