@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-19
+
+### Added
+
+- MkDocs documentation site with Material theme, search, and automated GitHub Pages deployment workflow.
+- Complete documentation guides for quickstart, batch execution, interactive REPL, datasets, quota tracking, configuration, workspaces, CLI, and Python API.
+- Support for user global configuration in `~/.kagglex/config.toml` (and `~/.kagglex/kagglex.toml`) with project-level overrides in `pyproject.toml` and `kagglex.toml`.
+- Hierarchical merging of configuration dictionaries for environment variables across global, project, and CLI tiers.
+
+### Changed
+
+- Centralized experiment run history storage exclusively in `~/.kagglex/runs.json` with project provenance (`project_path`), eliminating project-local directory dual writes.
+
 ## [0.3.0] - 2026-09-19
 
 ### Added
