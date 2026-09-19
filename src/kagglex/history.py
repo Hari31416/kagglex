@@ -143,3 +143,127 @@ def list_runs(limit: int = 20, repo_root: Path | None = None) -> list[RunRecord]
         except Exception:
             continue
     return results
+
+
+def parse_timestamp(timestamp_str: str) -> float | None:
+    """Parse various timestamp string formats into Unix epoch seconds."""
+    import datetime
+
+    if not timestamp_str or not isinstance(timestamp_str, str):
+        return None
+    cleaned = timestamp_str.strip()
+    if cleaned.endswith(" UTC"):
+        cleaned = cleaned[:-4].strip()
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%d",
+    ]
+    for fmt in formats:
+        try:
+            dt = datetime.datetime.strptime(cleaned, fmt)
+            return dt.replace(tzinfo=datetime.timezone.utc).timestamp()
+        except ValueError:
+            continue
+    return None
+
+
+def get_quota_usage(
+    repo_root: Path | None = None,
+    window_days: int = 7,
+    gpu_limit_hours: float = 30.0,
+    tpu_limit_hours: float = 20.0,
+    current_time: float | None = None,
+) -> dict[str, Any]:
+    """Calculate GPU and TPU accelerator quota usage across a rolling time window.
+
+    Args:
+        repo_root: Optional repository root to load history from.
+        window_days: Number of days in rolling window (default: 7).
+        gpu_limit_hours: Weekly GPU quota limit in hours (default: 30.0).
+        tpu_limit_hours: Weekly TPU quota limit in hours (default: 20.0).
+        current_time: Optional reference epoch timestamp (default: current time).
+
+    Returns:
+        Dictionary containing aggregated hours, limits, percentages, and run items.
+    """
+    import time
+
+    now = current_time if current_time is not None else time.time()
+    cutoff_epoch = now - (window_days * 86400.0)
+
+    records = load_all_records(repo_root)
+
+    gpu_seconds = 0.0
+    tpu_seconds = 0.0
+    runs_in_window: list[dict[str, Any]] = []
+
+    for r in records:
+        sub_time = parse_timestamp(r.get("submitted_at", ""))
+        if sub_time is None or sub_time < cutoff_epoch:
+            continue
+
+        accel = str(r.get("accelerator", "none")).lower()
+        dur = float(r.get("duration_sec") or 0.0)
+
+        if accel in {"t4-2x", "p100", "t4", "p100-1x"}:
+            gpu_seconds += dur
+            accel_type = "GPU"
+        elif accel in {"v3-8", "tpu", "v2-8"}:
+            tpu_seconds += dur
+            accel_type = "TPU"
+        else:
+            accel_type = "CPU"
+
+        runs_in_window.append(
+            {
+                "kernel_id": r.get("kernel_id", ""),
+                "title": r.get("title", ""),
+                "accelerator": accel,
+                "accelerator_type": accel_type,
+                "submitted_at": r.get("submitted_at", ""),
+                "duration_sec": dur,
+                "status": r.get("status", "unknown"),
+            }
+        )
+
+    gpu_hours = gpu_seconds / 3600.0
+    tpu_hours = tpu_seconds / 3600.0
+
+    gpu_remaining = max(0.0, gpu_limit_hours - gpu_hours)
+    tpu_remaining = max(0.0, tpu_limit_hours - tpu_hours)
+
+    gpu_pct = (
+        min(100.0, (gpu_hours / gpu_limit_hours * 100.0))
+        if gpu_limit_hours > 0
+        else 0.0
+    )
+    tpu_pct = (
+        min(100.0, (tpu_hours / tpu_limit_hours * 100.0))
+        if tpu_limit_hours > 0
+        else 0.0
+    )
+
+    return {
+        "window_days": window_days,
+        "gpu": {
+            "used_hours": round(gpu_hours, 2),
+            "limit_hours": gpu_limit_hours,
+            "remaining_hours": round(gpu_remaining, 2),
+            "used_pct": round(gpu_pct, 1),
+            "run_count": sum(
+                1 for item in runs_in_window if item["accelerator_type"] == "GPU"
+            ),
+        },
+        "tpu": {
+            "used_hours": round(tpu_hours, 2),
+            "limit_hours": tpu_limit_hours,
+            "remaining_hours": round(tpu_remaining, 2),
+            "used_pct": round(tpu_pct, 1),
+            "run_count": sum(
+                1 for item in runs_in_window if item["accelerator_type"] == "TPU"
+            ),
+        },
+        "runs": runs_in_window,
+    }

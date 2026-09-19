@@ -71,6 +71,45 @@ kagglex pull my-experiment --output-dir ./results --include-outputs "*.json" "ch
 kagglex dataset push --data-dir ./data/embeddings --title "Embeddings Dataset"
 ```
 
+### Auto-Dataset Payload Offloading
+
+When your project files or local assets exceed the inline payload limit (5 MB), automatically stage and upload them as a private Kaggle dataset:
+
+```bash
+kagglex run --file train.py --auto-dataset
+```
+
+### Inspect GPU and TPU Quota Usage
+
+Track your rolling 7-day accelerator consumption against Kaggle's weekly quotas (30 GPU hours / 20 TPU hours):
+
+```bash
+kagglex quota --days 7
+```
+
+### Declarative Configuration
+
+Define project defaults in `pyproject.toml` or `kagglex.toml` to avoid repetitive CLI arguments:
+
+```toml
+# pyproject.toml
+[tool.kagglex]
+gpu = "t4-2x"
+multi_gpu = true
+kaggle_secrets = ["WANDB_API_KEY", "HF_TOKEN"]
+datasets = ["username/my-dataset"]
+include_outputs = ["*.json", "checkpoints/*"]
+
+[tool.kagglex.env]
+WANDB_PROJECT = "my-experiment"
+```
+
+Then simply run:
+
+```bash
+kagglex run --file train.py
+```
+
 ### Interactive REPL on Running Kaggle Notebooks
 
 When a notebook is already open in Kaggle, copy its proxy URL (`Run -> Kaggle Jupyter Server -> Copy URL`) and run commands with sub-second feedback:

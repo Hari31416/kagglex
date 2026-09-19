@@ -18,7 +18,7 @@ from kagglex.client import (
 )
 from kagglex.config import DatasetConfig, RunConfig, load_project_config
 from kagglex.dataset import create_dataset_metadata, push_dataset
-from kagglex.history import list_runs, update_run
+from kagglex.history import get_quota_usage, list_runs, update_run
 from kagglex.workspace import find_repo_root
 
 logger = logging.getLogger("kagglex")
@@ -165,6 +165,32 @@ def handle_run(args: argparse.Namespace) -> int:
         poll_interval=poll_interval,
     )
 
+    # Check estimated quota warning
+    try:
+        usage = get_quota_usage(repo_root=project_dir, window_days=7)
+        if config.gpu_type in {"t4-2x", "p100"}:
+            gpu_info = usage["gpu"]
+            if gpu_info["used_pct"] >= 90.0 or gpu_info["remaining_hours"] < 2.0:
+                logger.warning(
+                    "Estimated GPU quota is %.1f%% used (%.2f / %.1f hrs). Remaining: %.2f hrs.",
+                    gpu_info["used_pct"],
+                    gpu_info["used_hours"],
+                    gpu_info["limit_hours"],
+                    gpu_info["remaining_hours"],
+                )
+        elif config.gpu_type == "v3-8" or config.enable_tpu:
+            tpu_info = usage["tpu"]
+            if tpu_info["used_pct"] >= 90.0 or tpu_info["remaining_hours"] < 2.0:
+                logger.warning(
+                    "Estimated TPU quota is %.1f%% used (%.2f / %.1f hrs). Remaining: %.2f hrs.",
+                    tpu_info["used_pct"],
+                    tpu_info["used_hours"],
+                    tpu_info["limit_hours"],
+                    tpu_info["remaining_hours"],
+                )
+    except Exception as e:
+        logger.debug("Quota pre-flight check skipped: %s", e)
+
     runner = KaggleRunner(repo_root=project_dir)
 
     if args.dry_run:
@@ -306,6 +332,103 @@ def handle_list(args: argparse.Namespace) -> int:
     for row in rows:
         sys.stdout.write(fmt.format(*row) + "\n")
     sys.stdout.write("\n")
+    return 0
+
+
+def handle_quota(args: argparse.Namespace) -> int:
+    """Handle 'quota' subcommand to display estimated accelerator usage."""
+    repo_root = find_repo_root()
+    proj_cfg = load_project_config(repo_root)
+
+    gpu_limit = (
+        args.gpu_limit
+        if args.gpu_limit != 30.0
+        else float(proj_cfg.get("gpu_weekly_limit_hours", 30.0))
+    )
+    tpu_limit = (
+        args.tpu_limit
+        if args.tpu_limit != 20.0
+        else float(proj_cfg.get("tpu_weekly_limit_hours", 20.0))
+    )
+
+    usage = get_quota_usage(
+        repo_root=repo_root,
+        window_days=args.days,
+        gpu_limit_hours=gpu_limit,
+        tpu_limit_hours=tpu_limit,
+    )
+
+    gpu_info = usage["gpu"]
+    tpu_info = usage["tpu"]
+
+    sys.stdout.write(f"\nKaggle Accelerator Quota Usage (Past {args.days} Days):\n\n")
+
+    headers = [
+        "ACCELERATOR",
+        "USED HOURS",
+        "QUOTA LIMIT",
+        "REMAINING",
+        "UTILIZATION",
+        "RUNS",
+    ]
+    rows = [
+        [
+            "GPU",
+            f"{gpu_info['used_hours']:.2f} hrs",
+            f"{gpu_info['limit_hours']:.2f} hrs",
+            f"{gpu_info['remaining_hours']:.2f} hrs",
+            f"{gpu_info['used_pct']:.1f}%",
+            str(gpu_info["run_count"]),
+        ],
+        [
+            "TPU",
+            f"{tpu_info['used_hours']:.2f} hrs",
+            f"{tpu_info['limit_hours']:.2f} hrs",
+            f"{tpu_info['remaining_hours']:.2f} hrs",
+            f"{tpu_info['used_pct']:.1f}%",
+            str(tpu_info["run_count"]),
+        ],
+    ]
+
+    col_widths = [len(h) for h in headers]
+    for row in rows:
+        for i, val in enumerate(row):
+            col_widths[i] = max(col_widths[i], len(val))
+
+    fmt = "  ".join(f"{{:<{w}}}" for w in col_widths)
+    sys.stdout.write(fmt.format(*headers) + "\n")
+    sys.stdout.write("  ".join("-" * w for w in col_widths) + "\n")
+    for row in rows:
+        sys.stdout.write(fmt.format(*row) + "\n")
+    sys.stdout.write("\n")
+
+    runs = usage.get("runs", [])
+    if runs:
+        sys.stdout.write(f"Recent Runs in Window ({len(runs)}):\n")
+        r_headers = ["KERNEL ID", "ACCEL", "SUBMITTED AT", "DURATION", "STATUS"]
+        r_rows = []
+        for r in runs[:10]:
+            dur_str = f"{r['duration_sec']:.1f}s" if r["duration_sec"] else "-"
+            r_rows.append(
+                [
+                    r["kernel_id"],
+                    r["accelerator"],
+                    r["submitted_at"],
+                    dur_str,
+                    r["status"].upper(),
+                ]
+            )
+        r_widths = [len(h) for h in r_headers]
+        for row in r_rows:
+            for i, val in enumerate(row):
+                r_widths[i] = max(r_widths[i], len(val))
+        r_fmt = "  ".join(f"{{:<{w}}}" for w in r_widths)
+        sys.stdout.write(r_fmt.format(*r_headers) + "\n")
+        sys.stdout.write("  ".join("-" * w for w in r_widths) + "\n")
+        for row in r_rows:
+            sys.stdout.write(r_fmt.format(*row) + "\n")
+        sys.stdout.write("\n")
+
     return 0
 
 
@@ -751,6 +874,30 @@ def create_parser() -> argparse.ArgumentParser:
         help="Local destination path for downloaded file",
     )
 
+    # 10. 'quota' subcommand
+    quota_p = subparsers.add_parser(
+        "quota",
+        help="Inspect local GPU/TPU quota usage and estimated remaining hours.",
+    )
+    quota_p.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Rolling time window in days (default: 7)",
+    )
+    quota_p.add_argument(
+        "--gpu-limit",
+        type=float,
+        default=30.0,
+        help="Weekly GPU quota limit in hours (default: 30.0)",
+    )
+    quota_p.add_argument(
+        "--tpu-limit",
+        type=float,
+        default=20.0,
+        help="Weekly TPU quota limit in hours (default: 20.0)",
+    )
+
     return parser
 
 
@@ -777,6 +924,8 @@ def main(args_list: list[str] | None = None) -> int:
             return handle_cancel(args)
         elif args.subcommand == "list":
             return handle_list(args)
+        elif args.subcommand == "quota":
+            return handle_quota(args)
         elif args.subcommand == "pull":
             return handle_pull(args)
         elif args.subcommand == "dataset":
