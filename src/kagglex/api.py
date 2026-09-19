@@ -1,6 +1,7 @@
 """Programmatic Python API for kagglex."""
 
 import logging
+import shutil
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -16,7 +17,8 @@ from kagglex.client import (
     push_kernel,
     stream_kernel_logs,
 )
-from kagglex.config import RunConfig
+from kagglex.config import DatasetConfig, RunConfig
+from kagglex.dataset import create_dataset_metadata, push_dataset
 from kagglex.history import RunRecord, get_run, list_runs, record_run, update_run
 from kagglex.packager import (
     create_kernel_metadata,
@@ -159,6 +161,7 @@ class KaggleRunner:
             project_dir=proj_dir,
             output_zip=pkg_zip,
             target_file=config.target_file,
+            allow_large_payload=config.auto_dataset,
         )
 
         # 2. Package local data if requested
@@ -166,20 +169,52 @@ class KaggleRunner:
         if config.include_data:
             data_paths = [Path(p) for p in config.include_data]
             data_zip = staging_base / "data_payload.zip"
-            res = package_local_data(data_paths, base_dir=proj_dir, output_zip=data_zip)
+            res = package_local_data(
+                data_paths,
+                base_dir=proj_dir,
+                output_zip=data_zip,
+                allow_large_payload=config.auto_dataset,
+            )
             if res:
                 data_zip_path = data_zip
 
-        # 3. Generate bootstrap script
+        # 3. If auto_dataset is enabled, prepare payload dataset directory
+        if config.auto_dataset:
+            ds_slug = config.auto_dataset_slug or f"kagglex-payload-{config.slug}"
+            ds_dir = staging_base / "payload_dataset"
+            ds_dir.mkdir(parents=True, exist_ok=True)
+
+            if pkg_zip.exists():
+                shutil.copy2(pkg_zip, ds_dir / "pkg_payload.zip")
+            if data_zip_path and data_zip_path.exists():
+                shutil.copy2(data_zip_path, ds_dir / "data_payload.zip")
+
+            ds_config = DatasetConfig(
+                title=f"Payload for {config.title}",
+                slug=ds_slug,
+                data_dir=ds_dir,
+                is_public=False,
+            )
+            create_dataset_metadata(ds_config, user, ds_dir)
+
+            full_ds_ref = f"{user}/{ds_slug}"
+            if (
+                full_ds_ref not in config.dataset_slugs
+                and ds_slug not in config.dataset_slugs
+            ):
+                config.dataset_slugs.append(full_ds_ref)
+
+        # 4. Generate bootstrap script
         bootstrap_file = staging_base / "kaggle_bootstrap.py"
         generate_bootstrap_script(
             config=config,
             output_path=bootstrap_file,
             pkg_zip_path=pkg_zip,
             data_zip_path=data_zip_path,
+            allow_large_payload=config.auto_dataset,
         )
 
-        # 4. Generate kernel-metadata.json
+        # 5. Generate kernel-metadata.json
         create_kernel_metadata(
             config=config,
             kaggle_username=user,
@@ -208,6 +243,23 @@ class KaggleRunner:
             config = RunConfig(command=command, title=title, **kwargs)
 
         staging_base = self.stage(config)
+
+        # If auto_dataset is configured, publish/version dataset before kernel push
+        if config.auto_dataset:
+            ds_slug = config.auto_dataset_slug or f"kagglex-payload-{config.slug}"
+            ds_dir = staging_base / "payload_dataset"
+            if ds_dir.exists():
+                ds_config = DatasetConfig(
+                    title=f"Payload for {config.title}",
+                    slug=ds_slug,
+                    data_dir=ds_dir,
+                    is_public=False,
+                )
+                logger.info("Uploading auto-dataset payload '%s' to Kaggle...", ds_slug)
+                push_dataset(
+                    ds_config, version_notes=f"Auto-dataset payload for {config.slug}"
+                )
+
         actual_kernel_id, kernel_url = push_kernel(staging_base)
 
         job = Job(

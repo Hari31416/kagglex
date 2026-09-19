@@ -50,6 +50,8 @@ class RunConfig:
     record_file: Path | None = None
     include_outputs: list[str] = field(default_factory=list)
     exclude_outputs: list[str] = field(default_factory=list)
+    auto_dataset: bool = False
+    auto_dataset_slug: str | None = None
     poll_interval: int = 20
     timeout_sec: int = 43200
 
@@ -67,6 +69,9 @@ class RunConfig:
             self.slug = slugify(self.title)
         else:
             self.slug = slugify(self.slug)
+
+        if self.auto_dataset_slug:
+            self.auto_dataset_slug = slugify(self.auto_dataset_slug)
 
         self.gpu_type = self.gpu_type.lower()
         if self.gpu_type not in SUPPORTED_ACCELERATORS:

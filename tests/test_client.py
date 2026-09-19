@@ -4,6 +4,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from kagglex.client import (
+    _build_server_fetch_pattern,
+    _glob_to_regex,
     _match_pattern,
     cancel_kernel,
     check_kaggle_health,
@@ -12,8 +14,6 @@ from kagglex.client import (
     poll_kernel,
     pull_kernel_output,
     push_kernel,
-    _build_server_fetch_pattern,
-    _glob_to_regex,
 )
 
 

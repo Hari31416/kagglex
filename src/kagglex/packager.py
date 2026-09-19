@@ -21,6 +21,7 @@ def package_project(
     output_zip: Path,
     target_file: Path | None = None,
     ignore_filter: IgnoreFilter | None = None,
+    allow_large_payload: bool = False,
 ) -> Path:
     """Package project files into a zip archive based on detected project layout.
 
@@ -29,6 +30,7 @@ def package_project(
         output_zip: Destination zip file path.
         target_file: Optional standalone script file.
         ignore_filter: Optional IgnoreFilter instance.
+        allow_large_payload: Whether to bypass 5 MB inline payload limit for dataset offloading.
 
     Returns:
         Path to generated zip archive.
@@ -69,10 +71,15 @@ def package_project(
     size_mb = size_bytes / (1024 * 1024)
 
     if size_bytes > MAX_PAYLOAD_BYTES:
-        raise ValueError(
-            f"Bundled project size ({size_mb:.2f} MB) exceeds maximum limit "
-            f"({MAX_PAYLOAD_BYTES / (1024 * 1024):.0f} MB). "
-            "Please add large files to .gitignore or .kaggleignore, or push them as a Kaggle Dataset."
+        if not allow_large_payload:
+            raise ValueError(
+                f"Bundled project size ({size_mb:.2f} MB) exceeds maximum limit "
+                f"({MAX_PAYLOAD_BYTES / (1024 * 1024):.0f} MB). "
+                "Please add large files to .gitignore or .kaggleignore, or use --auto-dataset to offload."
+            )
+        logger.info(
+            "Project size (%.2f MB) exceeds inline limit; enabled for dataset offloading.",
+            size_mb,
         )
 
     logger.info(
@@ -90,6 +97,7 @@ def package_local_data(
     base_dir: Path,
     output_zip: Path,
     ignore_filter: IgnoreFilter | None = None,
+    allow_large_payload: bool = False,
 ) -> Path | None:
     """Package small local data files or manifests into a data zip archive.
 
@@ -98,6 +106,7 @@ def package_local_data(
         base_dir: Base directory for resolving relative paths.
         output_zip: Target zip archive path.
         ignore_filter: Optional ignore filter.
+        allow_large_payload: Whether to bypass 5 MB inline payload limit for dataset offloading.
 
     Returns:
         Path to zip archive if files were bundled, None otherwise.
@@ -156,10 +165,15 @@ def package_local_data(
     size_bytes = output_zip.stat().st_size
     size_mb = size_bytes / (1024 * 1024)
     if size_bytes > MAX_PAYLOAD_BYTES:
-        raise ValueError(
-            f"Bundled data size ({size_mb:.2f} MB) exceeds maximum upload limit "
-            f"({MAX_PAYLOAD_BYTES / (1024 * 1024):.0f} MB). "
-            "Please upload large datasets using `kagglex dataset push`."
+        if not allow_large_payload:
+            raise ValueError(
+                f"Bundled data size ({size_mb:.2f} MB) exceeds maximum upload limit "
+                f"({MAX_PAYLOAD_BYTES / (1024 * 1024):.0f} MB). "
+                "Please upload large datasets using `kagglex dataset push` or use --auto-dataset."
+            )
+        logger.info(
+            "Local data size (%.2f MB) exceeds inline limit; enabled for dataset offloading.",
+            size_mb,
         )
 
     logger.info(

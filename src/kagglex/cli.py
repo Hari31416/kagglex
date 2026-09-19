@@ -100,6 +100,8 @@ def handle_run(args: argparse.Namespace) -> int:
         record_file=Path(args.record_file) if args.record_file else None,
         include_outputs=args.include_outputs or [],
         exclude_outputs=args.exclude_outputs or [],
+        auto_dataset=args.auto_dataset,
+        auto_dataset_slug=args.auto_dataset_slug,
         poll_interval=args.poll_interval,
     )
 
@@ -513,6 +515,17 @@ def create_parser() -> argparse.ArgumentParser:
         nargs="*",
         default=[],
         help="Glob patterns of files to exclude from download",
+    )
+    run_p.add_argument(
+        "--auto-dataset",
+        action="store_true",
+        help="Automatically publish project payload as a private Kaggle dataset if size exceeds limit",
+    )
+    run_p.add_argument(
+        "--auto-dataset-slug",
+        type=str,
+        default=None,
+        help="Custom dataset slug for auto-dataset payload",
     )
     run_p.add_argument(
         "--dry-run",

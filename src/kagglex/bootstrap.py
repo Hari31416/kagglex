@@ -126,11 +126,40 @@ def extract_package_and_install() -> None:
     if not pkg_zip.exists() and PKG_PAYLOAD_B64:
         pkg_zip.write_bytes(base64.b64decode(PKG_PAYLOAD_B64.encode("ascii")))
 
+    # Check for payload in mounted dataset inputs
+    if not pkg_zip.exists():
+        input_dir = Path("/kaggle/input")
+        if input_dir.exists():
+            for candidate in input_dir.glob("*/pkg_payload.zip"):
+                if candidate.is_file():
+                    log(f"Found package payload in dataset input: {candidate}")
+                    shutil.copy2(candidate, pkg_zip)
+                    break
+
     if pkg_zip.exists():
         log(f"Extracting package archive from {pkg_zip}...")
         with zipfile.ZipFile(pkg_zip, "r") as zf:
             zf.extractall(extract_dir)
+    else:
+        # Check if an uncompressed package was mounted directly in /kaggle/input
+        input_dir = Path("/kaggle/input")
+        if input_dir.exists():
+            for item in sorted(input_dir.glob("*")):
+                if item.is_dir() and (
+                    (item / "src").is_dir()
+                    or (item / "pyproject.toml").is_file()
+                    or (item / "setup.py").is_file()
+                ):
+                    log(f"Found uncompressed package directory in input: {item}")
+                    for sub in item.iterdir():
+                        dest = extract_dir / sub.name
+                        if sub.is_file():
+                            shutil.copy2(sub, dest)
+                        elif sub.is_dir():
+                            shutil.copytree(sub, dest, dirs_exist_ok=True)
+                    break
 
+    if any(extract_dir.iterdir()):
         # Add src and extract_dir to sys.path
         src_dir = extract_dir / "src"
         if src_dir.exists():
@@ -167,7 +196,7 @@ def extract_package_and_install() -> None:
             if not dest.exists() and item.is_file():
                 shutil.copy2(item, dest)
     else:
-        log("No package payload archive found.")
+        log("No package payload archive or directory found.")
 
 
 def extract_data_payload() -> None:
@@ -175,6 +204,15 @@ def extract_data_payload() -> None:
     data_zip = Path("/kaggle/working/data_payload.zip")
     if not data_zip.exists() and DATA_PAYLOAD_B64:
         data_zip.write_bytes(base64.b64decode(DATA_PAYLOAD_B64.encode("ascii")))
+
+    if not data_zip.exists():
+        input_dir = Path("/kaggle/input")
+        if input_dir.exists():
+            for candidate in input_dir.glob("*/data_payload.zip"):
+                if candidate.is_file():
+                    log(f"Found data payload in dataset input: {candidate}")
+                    shutil.copy2(candidate, data_zip)
+                    break
 
     if data_zip.exists():
         log("Extracting local data payload to /kaggle/working...")
@@ -297,6 +335,7 @@ def generate_bootstrap_script(
     output_path: Path,
     pkg_zip_path: Path | None = None,
     data_zip_path: Path | None = None,
+    allow_large_payload: bool = False,
 ) -> Path:
     """Generate kaggle_bootstrap.py with injected parameters.
 
@@ -305,6 +344,7 @@ def generate_bootstrap_script(
         output_path: Destination path for kaggle_bootstrap.py.
         pkg_zip_path: Optional path to package zip for base64 fallback.
         data_zip_path: Optional path to data zip for base64 fallback.
+        allow_large_payload: Whether to omit base64 encoding if payload exceeds 5 MB.
 
     Returns:
         Path to generated bootstrap script.
@@ -313,23 +353,29 @@ def generate_bootstrap_script(
     if pkg_zip_path and pkg_zip_path.exists():
         pkg_size = pkg_zip_path.stat().st_size
         if pkg_size > 5 * 1024 * 1024:
-            size_mb = pkg_size / (1024 * 1024)
-            raise ValueError(
-                f"pkg_payload.zip size ({size_mb:.2f} MB) exceeds the 5 MB limit. "
-                "Reduce payload size using .gitignore/.kaggleignore or push large assets as a Kaggle Dataset."
-            )
-        pkg_b64 = base64.b64encode(pkg_zip_path.read_bytes()).decode("ascii")
+            if not allow_large_payload and not config.auto_dataset:
+                size_mb = pkg_size / (1024 * 1024)
+                raise ValueError(
+                    f"pkg_payload.zip size ({size_mb:.2f} MB) exceeds the 5 MB limit. "
+                    "Reduce payload size using .gitignore/.kaggleignore or enable --auto-dataset."
+                )
+            logger.info("Omitting inline base64 package payload due to large size.")
+        else:
+            pkg_b64 = base64.b64encode(pkg_zip_path.read_bytes()).decode("ascii")
 
     data_b64 = ""
     if data_zip_path and data_zip_path.exists():
         data_size = data_zip_path.stat().st_size
         if data_size > 5 * 1024 * 1024:
-            size_mb = data_size / (1024 * 1024)
-            raise ValueError(
-                f"data_payload.zip size ({size_mb:.2f} MB) exceeds the 5 MB limit. "
-                "Upload large datasets using `kagglex dataset push` instead."
-            )
-        data_b64 = base64.b64encode(data_zip_path.read_bytes()).decode("ascii")
+            if not allow_large_payload and not config.auto_dataset:
+                size_mb = data_size / (1024 * 1024)
+                raise ValueError(
+                    f"data_payload.zip size ({size_mb:.2f} MB) exceeds the 5 MB limit. "
+                    "Upload large datasets using `kagglex dataset push` or enable --auto-dataset."
+                )
+            logger.info("Omitting inline base64 data payload due to large size.")
+        else:
+            data_b64 = base64.b64encode(data_zip_path.read_bytes()).decode("ascii")
 
     script_content = (
         BOOTSTRAP_TEMPLATE.replace(

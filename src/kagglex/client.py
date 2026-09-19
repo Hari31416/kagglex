@@ -3,7 +3,6 @@
 import fnmatch
 import json
 import logging
-import re
 import shutil
 import sys
 import tempfile

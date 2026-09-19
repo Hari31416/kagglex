@@ -9,7 +9,6 @@ import pytest
 
 from kagglex.config import RunConfig
 from kagglex.packager import (
-    MAX_PAYLOAD_BYTES,
     create_kernel_metadata,
     package_local_data,
     package_project,
